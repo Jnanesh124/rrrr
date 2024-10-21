@@ -5,6 +5,7 @@ from pyrogram.errors.exceptions.flood_420 import FloodWait
 from database import add_user, add_group, all_users, all_groups, users, remove_user
 from configs import cfg
 import random, asyncio
+import os
 
 app = Client(
     "approver",
@@ -163,6 +164,7 @@ async def fcast(_, m : Message):
 
     await lel.edit(f"✅Successfull to `{success}` users.\n❌ Faild to `{failed}` users.\n👾 Found `{blocked}` Blocked users \n👻 Found `{deactivated}` Deactivated users.")
 
-print("I'm Alive Now!")
-app.run()
-
+# Bind dynamic port for Heroku
+if __name__ == "__main__":
+    port = int(os.environ.get('PORT', 5000))  # Use PORT from environment, default to 5000
+    app.run(host="0.0.0.0", port=port)
