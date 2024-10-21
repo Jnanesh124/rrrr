@@ -163,8 +163,3 @@ async def fcast(_, m : Message):
             failed +=1
 
     await lel.edit(f"✅Successfull to `{success}` users.\n❌ Faild to `{failed}` users.\n👾 Found `{blocked}` Blocked users \n👻 Found `{deactivated}` Deactivated users.")
-
-# Bind dynamic port for Heroku
-if __name__ == "__main__":
-    port = int(os.environ.get('PORT', 5000))  # Use PORT from environment, default to 5000
-    app.run()
