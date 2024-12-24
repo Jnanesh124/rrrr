@@ -163,3 +163,6 @@ async def fcast(_, m : Message):
             failed +=1
 
     await lel.edit(f"✅Successfull to `{success}` users.\n❌ Faild to `{failed}` users.\n👾 Found `{blocked}` Blocked users \n👻 Found `{deactivated}` Deactivated users.")
+
+if __name__ == "__main__":
+    app.run()  # This is for running locally, not needed for Gunicorn
