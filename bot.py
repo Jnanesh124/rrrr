@@ -30,12 +30,12 @@ async def approve(_, m : Message):
         add_group(m.chat.id)
         await app.approve_chat_join_request(op.id, kk.id)
         img = random.choice(gif)
-        await app.send_video(kk.id,img, "**<strong>Hello {} .u are requist as been approved {}\n\nCLICK \START TO SEE MAGICK</strong>**".format(m.from_user.mention,m.chat.title))
+        await app.send_video(kk.id,img, "**<strong>Hello {}  its good to see u again\n\n⚠️Access Denied!⚠️\n\n🍿Subscribe my youtube channel\n\nLink :- https://youtube.com/@jnstudiomovies?si=LNje6Wl7NF-vDDq0\n\nAnd join BOT backupChannel\n\nLINK :- ©️@ROCKERSBACKUP @Rockers_Bots\n\nIf you joined click check again button to confirm.</strong>**".format(m.from_user.mention,m.chat.title))
         add_user(kk.id)
     except errors.PeerIdInvalid as e:
         print("user isn't start bot(means group)")
     except Exception as err:
-        print(str(err))   
+        print(str(err))    
  
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Start ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -44,25 +44,23 @@ async def op(_, m: Message):
     try:
         await app.get_chat_member(cfg.CHID, m.from_user.id) 
         
-        # If the chat type is private
-        if m.chat.type == enums.ChatType.PRIVATE:    
+        if m.chat.type == enums.ChatType.PRIVATE:
             add_user(m.from_user.id)
             keyboard = InlineKeyboardMarkup(
                 [
-                    [InlineKeyboardButton("🔔 Main Update Channel 🔔", url="http://t.me/JN2FLIX")],  # First row: 1 button
+                    [InlineKeyboardButton("🔔 MAIN UPDATE CHANNEL🔔", url="http://t.me/JN2FLIX")],  # First row: 1 button
                     [  # Second row: 2 buttons
-                        InlineKeyboardButton("🎥 OTT RELEASEAD MOVIES 🎥", url="https://t.me/+klclyvlnGlEyZWFl"),
+                        InlineKeyboardButton("🎥 OTT RELEASEAD MOVIES", url="https://t.me/+klclyvlnGlEyZWFl"),
                         InlineKeyboardButton("🔞 ADULT SEX VIDEO 🔞", url="https://t.me/+qBu1Y-tOm-1lYWY1")
                     ],
-                    [InlineKeyboardButton("🤖 BOT UPDATE CHANNEL 🤖", url="http://t.me/ROCKERSBACKUP")]  # Last row: 1 button
+                    [InlineKeyboardButton("🤖 MORE BOTS 🤖", url="http://t.me/ROCKERSBACKUP")]  # Last row: 1 button
                 ]
             )
             await m.reply_text(
-                "**<strong>I'm an auto approve  Bot. I can approve users in Groups/Channels. Add me to your chat and promote me to admin with add members permission.</strong>**",
+                "**<strong>I'm an auto-approve [Admin Join Requests](http://t.me/ROCKERSBACKUP) Bot. I can approve users in Groups/Channels. Add me to your chat and promote me to admin with add members permission.</strong>**",
                 reply_markup=keyboard
             )
         
-        # If the chat type is a group or supergroup
         elif m.chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
             keyboard = InlineKeyboardMarkup(
                 [
@@ -76,7 +74,7 @@ async def op(_, m: Message):
             )
         
         print(f"{m.from_user.first_name} has started your bot!")
-
+        
     except UserNotParticipant:
         key = InlineKeyboardMarkup(
             [
@@ -182,5 +180,5 @@ async def fcast(_, m : Message):
 
     await lel.edit(f"✅Successfull to `{success}` users.\n❌ Faild to `{failed}` users.\n👾 Found `{blocked}` Blocked users \n👻 Found `{deactivated}` Deactivated users.")
 
-if __name__ == "__main__":
-    app.run()  # This is for running locally, not needed for Gunicorn
+ if __name__ == "__main__":
+    app.run()  # This should only be here if you're running locally
