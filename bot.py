@@ -23,17 +23,20 @@ gif = [
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Main process ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 @app.on_chat_join_request(filters.group | filters.channel & ~filters.private)
-async def approve(_, m : Message):
+async def approve(_, m: Message):
     op = m.chat
     kk = m.from_user
     try:
         add_group(m.chat.id)
         await app.approve_chat_join_request(op.id, kk.id)
-        img = random.choice(gif)
-        await app.send_video(kk.id,img, "**<strong>Hello {}  its good to see u again\n\n⚠️Access Denied!⚠️\n\n🍿Subscribe my youtube channel\n\nLink :- https://youtube.com/@jnstudiomovies?si=LNje6Wl7NF-vDDq0\n\nAnd join BOT backupChannel\n\nLINK :- ©️@ROCKERSBACKUP @Rockers_Bots\n\nIf you joined click check again button to confirm.</strong>**".format(m.from_user.mention,m.chat.title))
+        # Send only text message
+        await app.send_message(
+            kk.id,
+            "**<strong>Hello, {}! 🎉\n\nYour request to join the channel '{}' has been approved.\n\n Click \start TO See Magic</strong>**".format(m.from_user.mention)
+        )
         add_user(kk.id)
-    except errors.PeerIdInvalid as e:
-        print("user isn't start bot(means group)")
+    except errors.PeerIdInvalid:
+        print("User hasn't started the bot (likely in a group).")
     except Exception as err:
         print(str(err))    
  
@@ -49,14 +52,16 @@ async def op(_, m: Message):
             add_user(m.from_user.id)
             keyboard = InlineKeyboardMarkup(
                 [
-                    [InlineKeyboardButton("🔔 Update Channel", url="http://t.me/Rockers_Bots")],
-                    [InlineKeyboardButton("🎥 Main Backup Channel", url="http://t.me/ROCKERSBACKUP")],
-                    [InlineKeyboardButton("📜 Documentation", url="http://t.me/DocumentationLink")],
-                    [InlineKeyboardButton("💬 Support", url="http://t.me/SupportLink")]
+                    [InlineKeyboardButton("🔔 Main Update Channel 🔔", url="http://t.me/JN2FLIX")],  # First row: 1 button
+                    [  # Second row: 2 buttons
+                        InlineKeyboardButton("🎥 OTT RELEASEAD MOVIES 🎥", url="https://t.me/+klclyvlnGlEyZWFl"),
+                        InlineKeyboardButton("🔞 ADULT SEX VIDEO 🔞", url="https://t.me/+qBu1Y-tOm-1lYWY1")
+                    ],
+                    [InlineKeyboardButton("🤖 BOT UPDATE CHANNEL 🤖", url="http://t.me/ROCKERSBACKUP")]  # Last row: 1 button
                 ]
             )
             await m.reply_text(
-                "**<strong>I'm an auto approve [Admin Join Requests](http://t.me/ROCKERSBACKUP) Bot. I can approve users in Groups/Channels. Add me to your chat and promote me to admin with add members permission.</strong>**",
+                "**<strong>I'm an auto approve  Bot. I can approve users in Groups/Channels. Add me to your chat and promote me to admin with add members permission.</strong>**",
                 reply_markup=keyboard
             )
         
