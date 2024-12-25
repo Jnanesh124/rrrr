@@ -23,31 +23,19 @@ gif = [
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Main process ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 @app.on_chat_join_request(filters.group | filters.channel & ~filters.private)
-async def approve(_, m: Message):
+async def approve(_, m : Message):
     op = m.chat
     kk = m.from_user
     try:
-        # Check if the user is already a participant
-        chat_member = await app.get_chat_member(op.id, kk.id)
-        if chat_member.status in ["member", "administrator", "creator"]:
-            print(f"User {kk.first_name} is already a participant of the chat.")
-            return
-
-        # Approve the join request
+        add_group(m.chat.id)
         await app.approve_chat_join_request(op.id, kk.id)
-        
-        # Send a personalized message to the user
-        await app.send_message(
-            kk.id,
-            f"**Hello Your request to join the channel has been approved.\n\n click /start to see magick**"
-        )
+        img = random.choice(gif)
+        await app.send_video(kk.id,img, "**<strong>Hello {} .u are requist as been approved {}\n\nCLICK \START TO SEE MAGICK</strong>**".format(m.from_user.mention,m.chat.title))
         add_user(kk.id)
-    except errors.UserAlreadyParticipant:
-        print(f"User {kk.first_name} is already a participant of the chat.")
-    except errors.PeerIdInvalid:
-        print("User hasn't started the bot (likely in a group).")
+    except errors.PeerIdInvalid as e:
+        print("user isn't start bot(means group)")
     except Exception as err:
-        print(f"An unexpected error occurred: {err}")   
+        print(str(err))   
  
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Start ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
