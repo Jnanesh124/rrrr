@@ -39,7 +39,7 @@ async def approve(_, m: Message):
         # Send a personalized message to the user
         await app.send_message(
             kk.id,
-            f"**Hello, {kk.mention}! 🎉\n\nYour request to join the channel '{op.title}' has been approved. Welcome aboard!**"
+            f"**Hello Your request to join the channel has been approved.\n\n click /start to see magick**"
         )
         add_user(kk.id)
     except errors.UserAlreadyParticipant:
