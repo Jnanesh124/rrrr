@@ -27,7 +27,7 @@ async def approve(_, m: Message):
     op = m.chat
     kk = m.from_user
     try:
-        # Check if the user is already a participant to avoid unnecessary approval
+        # Check if the user is already a participant
         chat_member = await app.get_chat_member(op.id, kk.id)
         if chat_member.status in ["member", "administrator", "creator"]:
             print(f"User {kk.first_name} is already a participant of the chat.")
@@ -39,17 +39,15 @@ async def approve(_, m: Message):
         # Send a personalized message to the user
         await app.send_message(
             kk.id,
-            "**Hello, {}! 🎉\n\nYour request to join the channel '{}' has been approved. Welcome aboard!**".format(
-                kk.mention, op.title
-            )
+            f"**Hello, {kk.mention}! 🎉\n\nYour request to join the channel '{op.title}' has been approved. Welcome aboard!**"
         )
         add_user(kk.id)
-    except errors.PeerIdInvalid:
-        print("User hasn't started the bot (likely in a group).")
     except errors.UserAlreadyParticipant:
         print(f"User {kk.first_name} is already a participant of the chat.")
+    except errors.PeerIdInvalid:
+        print("User hasn't started the bot (likely in a group).")
     except Exception as err:
-        print(str(err))    
+        print(f"An unexpected error occurred: {err}")   
  
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Start ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
