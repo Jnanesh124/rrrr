@@ -14,26 +14,33 @@ app = Client(
     bot_token=cfg.BOT_TOKEN
 )
 
-gif = [    
-    'https://storage.teleservices.io/Teleservice_fdef217da0d2.jpg',
-    'https://storage.teleservices.io/Teleservice_fdef217da0d2.jpg'
+# List of image URLs
+images = [    
+    'https://storage.teleservices.io/Teleservice_9cecc9a95dba.jpg',
+    'https://storage.teleservices.io/Teleservice_bb48095f81f5.jpg',
+    'https://storage.teleservices.io/Teleservice_16705d191b64.jpg'
 ]
-
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Main process ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 @app.on_chat_join_request(filters.group | filters.channel & ~filters.private)
-async def approve(_, m : Message):
+async def approve(_, m: Message):
     op = m.chat
     kk = m.from_user
     try:
         add_group(m.chat.id)
         await app.approve_chat_join_request(op.id, kk.id)
-        img = random.choice(gif)
-        await app.send_video(kk.id,img, "**<strong>Hello {}  ur requist approved ✔️ \n\nclick \start \n\nLINK :- ©️@ROCKERSBACKUP 🎞@JN2FLIX</strong>**".format(m.from_user.mention,m.chat.title))
+        img = random.choice(images)  # Choose a random image
+        await app.send_photo(
+            kk.id,  # Send to the user who requested to join
+            img,  # The chosen image URL
+            caption="**Hello {}  your request has been approved ✔️ \n\nClick /start \n\n©️@ROCKERSBACKUP @JN2FLIX**".format(
+                m.from_user.mention
+            )
+        )
         add_user(kk.id)
     except errors.PeerIdInvalid as e:
-        print("user isn't start bot(means group)")
+        print("User hasn't started the bot (or is from a group)")
     except Exception as err:
         print(str(err))    
  
@@ -45,8 +52,8 @@ async def op(_, m :Message):
         await app.get_chat_member(cfg.CHID, m.from_user.id) 
         if m.chat.type == enums.ChatType.PRIVATE:    
             add_user(m.from_user.id)
-            await m.reply_text("**<strong>I'm an auto approve [Admin Join Requests]({}) Bot.I can approve users in Groups/Channels.Add me to your chat and promote me to admin with add members permission join here for\n\n🤖BOT UPDATE CHANNEL :- @ROCKERSBACKUP\n🎞MOVIE UPDATE CHANNEL :- @JN2FLIX\n🔞adult video :- t.me/+SmF5dsu_aWQ5ZGFl</strong>**")
-    
+            await m.reply_text("**<strong>I'm an auto-approve [Admin Join Requests]({}) Bot. I can approve users in Groups/Channels. Add me to your chat and promote me to admin with add members permission. Join here for\n\n🤖 BOT UPDATE CHANNEL: @ROCKERSBACKUP\n🎞 MOVIE UPDATE CHANNEL: @JN2FLIX\n🔞 Adult video: t.me/+SmF5dsu_aWQ5ZGFl</strong>**",disable_web_page_preview=True)
+            
         elif m.chat.type == enums.ChatType.GROUP or enums.ChatType.SUPERGROUP:
             keyboar = InlineKeyboardMarkup(
                 [
