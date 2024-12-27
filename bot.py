@@ -40,41 +40,25 @@ async def approve(_, m : Message):
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Start ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 @app.on_message(filters.command("start"))
-async def op(_, m: Message):
+async def op(_, m :Message):
     try:
         await app.get_chat_member(cfg.CHID, m.from_user.id) 
-        
-        if m.chat.type == enums.ChatType.PRIVATE:
+        if m.chat.type == enums.ChatType.PRIVATE:    
             add_user(m.from_user.id)
-            keyboard = InlineKeyboardMarkup(
+            await m.reply_text("**<strong>I'm an auto approve [Admin Join Requests]({}) Bot.I can approve users in Groups/Channels.Add me to your chat and promote me to admin with add members permission join here for\n\nBOT UPDATE CHANNEL @Rockers_Bots\n\nMAIN BACKUP CHANNEL :- @ROCKERSBACKUP</strong>**")
+    
+        elif m.chat.type == enums.ChatType.GROUP or enums.ChatType.SUPERGROUP:
+            keyboar = InlineKeyboardMarkup(
                 [
-                    [InlineKeyboardButton("🔔 MAIN UPDATE CHANNEL🔔", url="http://t.me/JN2FLIX")],  # First row: 1 button
-                    [  # Second row: 2 buttons
-                        InlineKeyboardButton("🎥 OTT RELEASEAD MOVIES", url="https://t.me/+klclyvlnGlEyZWFl"),
-                        InlineKeyboardButton("🔞 ADULT SEX VIDEO 🔞", url="https://t.me/+qBu1Y-tOm-1lYWY1")
-                    ],
-                    [InlineKeyboardButton("🤖 MORE BOTS 🤖", url="http://t.me/ROCKERSBACKUP")]  # Last row: 1 button
-                ]
-            )
-            await m.reply_text(
-                "**<strong>I'm an auto-approve [Admin Join Requests](http://t.me/ROCKERSBACKUP) Bot. I can approve users in Groups/Channels. Add me to your chat and promote me to admin with add members permission.</strong>**",
-                reply_markup=keyboard
-            )
-        
-        elif m.chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
-            keyboard = InlineKeyboardMarkup(
-                [
-                    [InlineKeyboardButton("🍿 BOT BACKUP CHANNEL 🍿", url="http://t.me/ROCKERSBACKUP")]
+                    [
+                        InlineKeyboardButton("🍿BOT BACKUP CHANNEL🍿", url="http://t.me/ROCKERSBACKUP")
+                    ]
                 ]
             )
             add_group(m.chat.id)
-            await m.reply_text(
-                "**Hello! Start me in private for more details: @ROCKERSBACKUP**",
-                reply_markup=keyboard
-            )
-        
-        print(f"{m.from_user.first_name} has started your bot!")
-        
+            await m.reply_text("** Hello start me private for more details @ROCKERSBACKUP**")
+        print(m.from_user.first_name +" Is started Your Bot!")
+
     except UserNotParticipant:
         key = InlineKeyboardMarkup(
             [
