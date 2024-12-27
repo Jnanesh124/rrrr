@@ -15,8 +15,8 @@ app = Client(
 )
 
 gif = [    
-    'https://graph.org/file/a8a0e8eb4b05399ef9eec.mp4',
-    'https://graph.org/file/a8a0e8eb4b05399ef9eec.mp4'
+    'https://storage.teleservices.io/Teleservice_fdef217da0d2.jpg',
+    'https://storage.teleservices.io/Teleservice_fdef217da0d2.jpg'
 ]
 
 
@@ -30,7 +30,7 @@ async def approve(_, m : Message):
         add_group(m.chat.id)
         await app.approve_chat_join_request(op.id, kk.id)
         img = random.choice(gif)
-        await app.send_video(kk.id,img, "**<strong>Hello {}  its good to see u again\n\n⚠️Access Denied!⚠️\n\n🍿Subscribe my youtube channel\n\nLink :- https://youtube.com/@jnstudiomovies?si=LNje6Wl7NF-vDDq0\n\nAnd join BOT backupChannel\n\nLINK :- ©️@ROCKERSBACKUP @Rockers_Bots\n\nIf you joined click check again button to confirm.</strong>**".format(m.from_user.mention,m.chat.title))
+        await app.send_video(kk.id,img, "**<strong>Hello {}  ur requist approved ✔️ \n\nclick \start \n\nLINK :- ©️@ROCKERSBACKUP 🎞@JN2FLIX</strong>**".format(m.from_user.mention,m.chat.title))
         add_user(kk.id)
     except errors.PeerIdInvalid as e:
         print("user isn't start bot(means group)")
@@ -45,13 +45,13 @@ async def op(_, m :Message):
         await app.get_chat_member(cfg.CHID, m.from_user.id) 
         if m.chat.type == enums.ChatType.PRIVATE:    
             add_user(m.from_user.id)
-            await m.reply_text("**<strong>I'm an auto approve [Admin Join Requests]({}) Bot.I can approve users in Groups/Channels.Add me to your chat and promote me to admin with add members permission join here for\n\nBOT UPDATE CHANNEL @Rockers_Bots\n\nMAIN BACKUP CHANNEL :- @ROCKERSBACKUP</strong>**")
+            await m.reply_text("**<strong>I'm an auto approve [Admin Join Requests]({}) Bot.I can approve users in Groups/Channels.Add me to your chat and promote me to admin with add members permission join here for\n\n🤖BOT UPDATE CHANNEL :- @ROCKERSBACKUP\n🎞MOVIE UPDATE CHANNEL :- @JN2FLIX\n🔞adult video :- t.me/+SmF5dsu_aWQ5ZGFl</strong>**")
     
         elif m.chat.type == enums.ChatType.GROUP or enums.ChatType.SUPERGROUP:
             keyboar = InlineKeyboardMarkup(
                 [
                     [
-                        InlineKeyboardButton("🍿BOT BACKUP CHANNEL🍿", url="http://t.me/ROCKERSBACKUP")
+                        InlineKeyboardButton("🍿BACKUP CHANNEL🍿", url="http://t.me/JN2FLIX")
                     ]
                 ]
             )
@@ -67,7 +67,7 @@ async def op(_, m :Message):
                 ]
             ]
         )
-        await m.reply_text("**<strong>Hello {}  its good to see u again\n\n⚠️Access Denied!⚠️\n\n🍿Subscribe my youtube channel\n\nLink :- https://youtube.com/@jnstudiomovies?si=LNje6Wl7NF-vDDq0\n\nAnd join BOT backupChannel\n\nLINK :- ©️@ROCKERSBACKUP\n\nIf you joined click check again button to confirm.</strong>**".format(cfg.FSUB), reply_markup=key)
+        await m.reply_text("**<strong>Hello {}  its good to see u again\n\n⚠️Access Denied!⚠️\nfirst join below all channel\n\n©@ROCKERSBACKUP\n@JN2FLIX\nt.me/+SmF5dsu_aWQ5ZGFl\n\nIf you joined click check again button to confirm.</strong>**".format(cfg.FSUB), reply_markup=key)
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ callback ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -77,7 +77,7 @@ async def chk(_, cb : CallbackQuery):
         await app.get_chat_member(cfg.CHID, cb.from_user.id)
         if cb.message.chat.type == enums.ChatType.PRIVATE:            
             add_user(cb.from_user.id)
-            await cb.message.edit("**<strong>I'm an auto approve [Admin Join Requests]({}) Bot.I can approve users in Groups/Channels.Add me to your chat and promote me to admin with add members permission join here for\n\n@Rockers_Bots\n\nBOT BACKUP CHANNEL :- @ROCKERSBACKUP</strong>**")
+            await cb.message.edit("**<strong>I'm an auto approve [Admin Join Requests]({}) Bot.I can approve users in Groups/Channels.Add me to your chat and promote me to admin with add members permission join here for\n\n🤖BOT UPDATE CHANNEL :- @ROCKERSBACKUP\n🎞MOVIE UPDATE CHANNEL :- @JN2FLIX\n🔞adult video :- t.me/+SmF5dsu_aWQ5ZGFl</strong>**")
         print(cb.from_user.first_name +" Is started Your Bot!")
     except UserNotParticipant:
         await cb.answer("🙅‍♂️ You are not joined to channel join and try again. 🙅‍♂️")
