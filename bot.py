@@ -52,7 +52,7 @@ async def op(_, m :Message):
         await app.get_chat_member(cfg.CHID, m.from_user.id) 
         if m.chat.type == enums.ChatType.PRIVATE:    
             add_user(m.from_user.id)
-            await m.reply_text("**<strong>I'm an auto-approve [Admin Join Requests]({}) Bot. I can approve users in Groups/Channels. Add me to your chat and promote me to admin with add members permission. Join here for\n\n🤖 BOT UPDATE CHANNEL: @ROCKERSBACKUP\n🎞 MOVIE UPDATE CHANNEL: @JN2FLIX\n🔞 Adult video: t.me/+SmF5dsu_aWQ5ZGFl</strong>**",disable_web_page_preview=True)
+            await m.reply_text("**<strong>I'm an auto-approve [Admin Join Requests]({}) Bot. I can approve users in Groups/Channels. Add me to your chat and promote me to admin with add members permission. Join here for\n\n🤖 BOT UPDATE CHANNEL: @ROCKERSBACKUP\n🎞 MOVIE UPDATE CHANNEL: @JN2FLIX\n🔞 Adult video: t.me/+SmF5dsu_aWQ5ZGFl</strong>**",disable_web_page_preview=False)
             
         elif m.chat.type == enums.ChatType.GROUP or enums.ChatType.SUPERGROUP:
             keyboar = InlineKeyboardMarkup(
@@ -74,7 +74,7 @@ async def op(_, m :Message):
                 ]
             ]
         )
-        await m.reply_text("**<strong>Hello {}  its good to see u again\n\n⚠️Access Denied!⚠️\nfirst join below all channel\n\n©@ROCKERSBACKUP\n@JN2FLIX\nt.me/+SmF5dsu_aWQ5ZGFl\n\nIf you joined click check again button to confirm.</strong>**".format(cfg.FSUB), reply_markup=key)
+        await m.reply_text("**<strong>Hello {}  its good to see u again\n join below all channel\n\n@JN2FLIX\n©@ROCKERSBACKUP</strong>**".format(cfg.FSUB), reply_markup=key)
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ callback ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -84,7 +84,7 @@ async def chk(_, cb : CallbackQuery):
         await app.get_chat_member(cfg.CHID, cb.from_user.id)
         if cb.message.chat.type == enums.ChatType.PRIVATE:            
             add_user(cb.from_user.id)
-            await cb.message.edit("**<strong>I'm an auto approve [Admin Join Requests]({}) Bot.I can approve users in Groups/Channels.Add me to your chat and promote me to admin with add members permission join here for\n\n🤖BOT UPDATE CHANNEL :- @ROCKERSBACKUP\n🎞MOVIE UPDATE CHANNEL :- @JN2FLIX\n🔞adult video :- t.me/+SmF5dsu_aWQ5ZGFl</strong>**")
+            await cb.message.edit("**<strong>I'm an auto approve [Admin Join Requests]({}) Bot.I can approve users in Groups/Channels.Add me to your chat and promote me to admin with add members permission join here for\n\n🤖BOT UPDATE CHANNEL :- @ROCKERSBACKUP\n🎞MOVIE UPDATE CHANNEL :- @JN2FLIX</strong>**")
         print(cb.from_user.first_name +" Is started Your Bot!")
     except UserNotParticipant:
         await cb.answer("🙅‍♂️ You are not joined to channel join and try again. 🙅‍♂️")
