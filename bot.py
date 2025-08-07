@@ -74,7 +74,7 @@ async def op(_, m :Message):
                 ]
             ]
         )
-        await m.reply_text("**<strong>Hello {}  its good to see u again\n join below all channel\n\n@JNK_BOTS\n©JNKBACKUP</strong>**".format(cfg.FSUB), reply_markup=key)
+        await m.reply_text("**<strong>Hello {}  its good to see u again\n join below all channel\n\n@JNK_BOTS\n©@JNKBACKUP</strong>**".format(cfg.FSUB), reply_markup=key)
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ callback ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
