@@ -166,6 +166,7 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
         ignored_count = 0
         accepted_users = []  # Store accepted users for notification
         processed_users = set()  # Track processed user IDs to avoid duplicates
+        start_time = asyncio.get_event_loop().time()  # Track start time for 6-hour limit
 
         # First, fetch and display all pending requests
         initial_msg = await bot_app.send_message(user_id, f"🔍 **Fetching pending requests for {chat_title}...**")
@@ -208,6 +209,20 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
 
         while auto_accept_running.get(user_id, {}).get(chat_id, False):
             try:
+                # Check if 6 hours have passed (21600 seconds)
+                current_time = asyncio.get_event_loop().time()
+                elapsed_time = current_time - start_time
+                
+                if elapsed_time >= 21600:  # 6 hours = 21600 seconds
+                    await bot_app.send_message(user_id, 
+                        f"⏰ **6-hour time limit reached for {chat_title}**\n\n"
+                        f"Due to joining too many channels, the user account will leave automatically.\n\n"
+                        f"📊 **Final Statistics:**\n"
+                        f"✅ Accepted: {accepted_count}\n"
+                        f"❌ Failed: {failed_count}\n"
+                        f"⏭️ Ignored: {ignored_count}")
+                    break
+                
                 pending_requests = await get_pending_requests(chat_id)
 
                 if not pending_requests:
@@ -242,7 +257,20 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
                             accepted_count += 1
                             accepted_users.append({"id": req_user_id, "name": req_user_name})
 
-                            # Individual notifications removed - all updates will be shown in bot PM
+                            # Send welcome message to accepted user
+                            try:
+                                from bot import send_welcome_message
+                                # Create a simple user object for welcome message
+                                class SimpleUser:
+                                    def __init__(self, user_id, name):
+                                        self.id = user_id
+                                        self.first_name = name
+                                        self.mention = f"[{name}](tg://user?id={user_id})"
+                                
+                                simple_user = SimpleUser(req_user_id, req_user_name)
+                                await send_welcome_message(simple_user)
+                            except Exception as welcome_error:
+                                print(f"⚠️ Could not send welcome message to {req_user_name}: {welcome_error}")
 
                             print(f"✅ Accepted: {req_user_name} (ID: {req_user_id})")
                         else:
@@ -354,6 +382,7 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
                 final_text += "\n"
 
             final_text += f"🚪 **User account has successfully left the channel.**\n\n" \
+                         f"⏰ **Auto-leave Policy:** User account automatically leaves after completing all requests or after 6 hours to prevent account limitations.\n\n" \
                          f"💡 **To process requests again:** Use `/pendingaccept` and send the invite link to rejoin."
 
         except Exception as leave_error:

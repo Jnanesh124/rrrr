@@ -160,6 +160,24 @@ async def admin_done_command(_, m: Message):
 async def admin_done_callback(_, cb: CallbackQuery):
     await handle_admin_done(cb.from_user.id, cb.message, cb)
 
+@app.on_callback_query(filters.regex("cancel_setup"))
+async def cancel_setup_callback(_, cb: CallbackQuery):
+    user_id = cb.from_user.id
+    
+    # Clean up user session
+    if user_id in auto_accept_running:
+        for chat_id in auto_accept_running[user_id]:
+            auto_accept_running[user_id][chat_id] = False
+        del auto_accept_running[user_id]
+    
+    if user_id in pending_channels:
+        del pending_channels[user_id]
+    
+    user_states[user_id] = UserState.IDLE
+    
+    await cb.answer("Setup cancelled!", show_alert=False)
+    await cb.message.edit_text("❌ **Setup Cancelled**\n\nYou can start again anytime with /pendingaccept")
+
 async def handle_admin_done(user_id, message, callback=None):
     if user_states.get(user_id) != UserState.WAITING_FOR_ADMIN_CONFIRMATION:
         text = "❌ **No pending channel setup found!**\n\nPlease use /pendingaccept first."
@@ -200,16 +218,23 @@ async def handle_admin_done(user_id, message, callback=None):
         if not has_permission:
             error_text = f"❌ **Admin Permission Check Failed!**\n\n{status_text}" \
                        f"**Required:** Admin with 'Invite Members' permission\n\n" \
-                       f"**Solution:** Please ensure you've given me admin rights with the 'Add Members' or 'Invite Users' permission enabled."
+                       f"**Solution:** Please ensure you've given me admin rights with the 'Add Members' or 'Invite Users' permission enabled.\n\n" \
+                       f"**⚠️ The button will remain until admin permissions are granted.**"
 
-            # Add Try Again button
+            # Add Try Again button that persists
             retry_keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔄 Try Again", callback_data="admin_done")]
+                [InlineKeyboardButton("🔄 Try Again", callback_data="admin_done")],
+                [InlineKeyboardButton("❌ Cancel Setup", callback_data="cancel_setup")]
             ])
 
             if callback:
-                await callback.answer("❌ Admin permission check failed!", show_alert=True)
-                await message.edit_text(error_text, reply_markup=retry_keyboard)
+                await callback.answer("❌ Admin permission check failed! Please grant admin rights and try again.", show_alert=True)
+                # Don't close the message, keep the buttons active
+                try:
+                    await message.edit_text(error_text, reply_markup=retry_keyboard)
+                except:
+                    # If edit fails, send new message
+                    await message.reply_text(error_text, reply_markup=retry_keyboard)
             else:
                 await message.reply_text(error_text, reply_markup=retry_keyboard)
             return
@@ -382,27 +407,7 @@ async def approve(_, m: Message):
         print(f"✅ Auto-approved join request from {kk.first_name or 'Unknown'} (ID: {kk.id}) in {op.title or 'Unknown'}")
         
         # Send welcome message with image
-        try:
-            img = random.choice(images)  # Choose a random image
-            await app.send_photo(
-                kk.id,  # Send to the user who requested to join
-                img,  # The chosen image URL
-                caption="**Hello {}! Your request has been approved ✔️\n\nClick /start for more features\n\n©️@JNKBACKUP @JNK_BOTS**".format(
-                    m.from_user.mention
-                )
-            )
-        except errors.PeerIdInvalid:
-            print(f"User {kk.id} hasn't started the bot, couldn't send welcome message")
-        except Exception as photo_err:
-            print(f"Error sending welcome photo: {photo_err}")
-            # Try sending text message instead
-            try:
-                await app.send_message(
-                    kk.id,
-                    f"**Hello {kk.first_name or 'there'}! Your request has been approved ✔️\n\nClick /start for more features\n\n©️@JNKBACKUP @JNK_BOTS**"
-                )
-            except:
-                print(f"Could not send any message to user {kk.id}")
+        await send_welcome_message(kk)
         
         add_user(kk.id)
         
@@ -415,6 +420,32 @@ async def approve(_, m: Message):
         # Log more details for debugging
         print(f"Chat: {op.title} (ID: {op.id})")
         print(f"User: {kk.first_name} (ID: {kk.id})")
+
+async def send_welcome_message(user):
+    """Send welcome message to approved user"""
+    try:
+        img = random.choice(images)  # Choose a random image
+        await app.send_photo(
+            user.id,  # Send to the user who requested to join
+            img,  # The chosen image URL
+            caption="**Hello {}! Your request has been approved ✔️\n\nClick /start for more features\n\n©️@JNKBACKUP @JNK_BOTS**".format(
+                user.mention
+            )
+        )
+        print(f"📸 Welcome photo sent to {user.first_name or 'Unknown'} (ID: {user.id})")
+    except errors.PeerIdInvalid:
+        print(f"User {user.id} hasn't started the bot, couldn't send welcome photo")
+    except Exception as photo_err:
+        print(f"Error sending welcome photo: {photo_err}")
+        # Try sending text message instead
+        try:
+            await app.send_message(
+                user.id,
+                f"**Hello {user.first_name or 'there'}! Your request has been approved ✔️\n\nClick /start for more features\n\n©️@JNKBACKUP @JNK_BOTS**"
+            )
+            print(f"💬 Welcome text sent to {user.first_name or 'Unknown'} (ID: {user.id})")
+        except Exception as text_err:
+            print(f"Could not send any welcome message to user {user.id}: {text_err}")
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Start ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
