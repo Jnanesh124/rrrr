@@ -32,6 +32,15 @@ async def pending_accept_start(_, m: Message):
     user_id = m.from_user.id
     add_user(user_id)
 
+    # Stop any existing auto-accept processes for this user
+    if user_id in auto_accept_running:
+        for chat_id in auto_accept_running[user_id]:
+            auto_accept_running[user_id][chat_id] = False
+    
+    # Clear any existing pending channel data
+    if user_id in pending_channels:
+        del pending_channels[user_id]
+
     user_states[user_id] = UserState.WAITING_FOR_LINK
 
     await m.reply_text(
@@ -41,7 +50,9 @@ async def pending_accept_start(_, m: Message):
         "• https://t.me/joinchat/xxxxxx\n"
         "• https://t.me/+xxxxxx\n"
         "• https://telegram.me/joinchat/xxxxxx\n\n"
-        "**Note:** Make sure the link is valid and not expired!"
+        "**Note:** Make sure the link is valid and not expired!\n\n"
+        "💡 **Tip:** If you used this command before and the user account left the channel, "
+        "it will rejoin automatically when you provide the invite link."
     )
 
 @app.on_message(filters.text & filters.private)
@@ -352,6 +363,7 @@ async def op(_, m :Message):
 🤖 **Bot Features:**
 ✅ Auto-approve join requests
 ✅ Auto-accept pending requests with user account
+✅ Auto-leave channel after completing all requests
 ✅ Live statistics and logs
 
 **📋 Available Commands:**
@@ -369,7 +381,11 @@ async def op(_, m :Message):
 1. Click /pendingaccept
 2. Send your channel/group invite link
 3. Click /admindone after giving admin permissions
-4. Watch the magic happen! ✨"""
+4. Watch the magic happen! ✨
+5. User account will automatically leave when done
+
+**🔄 Need to process requests again?**
+Simply use /pendingaccept command again and send the invite link - the user account will rejoin automatically!"""
 
             await m.reply_text(welcome_text, disable_web_page_preview=False)
 

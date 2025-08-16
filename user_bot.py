@@ -119,11 +119,17 @@ async def get_pending_requests(chat_id):
             pending_requests.append(request)
         return pending_requests
     except Exception as e:
-        print(f"Error getting pending requests: {e}")
+        error_msg = str(e).lower()
+        if "chat_admin_required" in error_msg:
+            print(f"Admin permission needed for chat {chat_id}")
+        elif "channel_private" in error_msg:
+            print(f"Channel/group {chat_id} is not accessible")
+        else:
+            print(f"Error getting pending requests: {e}")
         return []
 
 async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
-    """Automatically accept all pending requests"""
+    """Automatically accept all pending requests and leave when done"""
     try:
         accepted_count = 0
         failed_count = 0
@@ -132,13 +138,22 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
         await bot_app.send_message(user_id, f"🔄 **Starting auto-accept for {chat_title}...**\n\n📊 **Live Status:**\n✅ Accepted: {accepted_count}\n❌ Failed: {failed_count}")
         
         status_msg = None
+        consecutive_empty_checks = 0
+        
         while auto_accept_running.get(user_id, {}).get(chat_id, False):
             try:
                 pending_requests = await get_pending_requests(chat_id)
                 
                 if not pending_requests:
+                    consecutive_empty_checks += 1
+                    # If no pending requests for 3 consecutive checks (15 seconds), consider done
+                    if consecutive_empty_checks >= 3:
+                        break
                     await asyncio.sleep(5)  # Wait 5 seconds before checking again
                     continue
+                
+                # Reset counter if we found pending requests
+                consecutive_empty_checks = 0
                 
                 for request in pending_requests:
                     if not auto_accept_running.get(user_id, {}).get(chat_id, False):
@@ -173,13 +188,37 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
             except Exception as e:
                 print(f"Error in auto-accept loop: {e}")
                 await asyncio.sleep(5)
+        
+        # Auto-leave the channel/group after completing all requests
+        try:
+            await user_app.send_message(
+                chat_id, 
+                "✅ **All pending requests have been processed!**\n\n"
+                "📋 **Summary:**\n"
+                f"✅ Accepted: {accepted_count}\n"
+                f"❌ Failed: {failed_count}\n\n"
+                "🚪 **I'm leaving now.** If you need to process requests again, "
+                "use `/pendingaccept` command and send the invite link to rejoin.\n\n"
+                "**Thank you for using Auto-Approve Bot!** 🤖"
+            )
+            await asyncio.sleep(2)  # Wait a moment before leaving
+            
+            # Leave the chat
+            await user_app.leave_chat(chat_id)
+            
+            # Notify the bot user about successful completion and leaving
+            final_text = f"✅ **Auto-accept completed for {chat_title}!**\n\n📊 **Final Statistics:**\n✅ Total Accepted: {accepted_count}\n❌ Total Failed: {failed_count}\n\n🚪 **User account has left the channel.**\n\n💡 **To process requests again:** Use `/pendingaccept` and send the invite link to rejoin."
+            
+        except Exception as leave_error:
+            print(f"Error leaving chat: {leave_error}")
+            # If leaving fails, still show completion message
+            final_text = f"✅ **Auto-accept completed for {chat_title}!**\n\n📊 **Final Statistics:**\n✅ Total Accepted: {accepted_count}\n❌ Total Failed: {failed_count}\n\n⚠️ **Note:** Could not leave the channel automatically. You may leave manually if needed."
                 
     except Exception as e:
         await bot_app.send_message(user_id, f"❌ **Error in auto-accept process:** {str(e)}")
+        final_text = f"❌ **Process ended with error for {chat_title}**\n\n📊 **Statistics:**\n✅ Accepted: {accepted_count}\n❌ Failed: {failed_count}"
     
-    # Final summary
-    final_text = f"✅ **Auto-accept completed for {chat_title}!**\n\n📊 **Final Statistics:**\n✅ Total Accepted: {accepted_count}\n❌ Total Failed: {failed_count}"
-    
+    # Send final status
     try:
         if status_msg:
             await status_msg.edit_text(final_text)
@@ -187,6 +226,17 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
             await bot_app.send_message(user_id, final_text)
     except:
         await bot_app.send_message(user_id, final_text)
+    
+    # Clean up the running state
+    if user_id in auto_accept_running and chat_id in auto_accept_running[user_id]:
+        auto_accept_running[user_id][chat_id] = False
+    
+    # Remove from pending channels so user can start fresh with /pendingaccept
+    if user_id in pending_channels:
+        del pending_channels[user_id]
+    
+    # Reset user state to idle
+    user_states[user_id] = UserState.IDLE
 
 def start_user_bot():
     """Start the user bot"""
