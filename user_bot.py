@@ -44,13 +44,35 @@ async def check_admin_permissions(chat_id, user_id):
     """Check if user has admin permissions with invite members permission"""
     try:
         member = await user_app.get_chat_member(chat_id, user_id)
-        if member.status in ["administrator", "creator"]:
-            if member.status == "creator":
-                return True
+        
+        # If user is creator, they have all permissions
+        if member.status == "creator":
+            return True
+            
+        # If user is administrator, check their privileges
+        if member.status == "administrator":
+            # If privileges object exists, check can_invite_users
             if hasattr(member, 'privileges') and member.privileges:
-                return member.privileges.can_invite_users
+                # Check if can_invite_users is True or None (None means all permissions)
+                if member.privileges.can_invite_users is True or member.privileges.can_invite_users is None:
+                    return True
+                # Also check if they have all admin rights
+                if hasattr(member.privileges, 'is_anonymous') and member.privileges.is_anonymous is False:
+                    # Check if most admin privileges are True (indicating full admin)
+                    admin_perms = [
+                        getattr(member.privileges, 'can_delete_messages', False),
+                        getattr(member.privileges, 'can_manage_chat', False),
+                        getattr(member.privileges, 'can_restrict_members', False)
+                    ]
+                    if sum(admin_perms) >= 2:  # If they have most admin perms, likely can invite
+                        return True
+            else:
+                # If no privileges object, assume they have invite permission
+                return True
+                
         return False
-    except Exception:
+    except Exception as e:
+        print(f"Error checking admin permissions: {e}")
         return False
 
 async def get_pending_requests(chat_id):
