@@ -36,7 +36,7 @@ async def pending_accept_start(_, m: Message):
     if user_id in auto_accept_running:
         for chat_id in auto_accept_running[user_id]:
             auto_accept_running[user_id][chat_id] = False
-    
+
     # Clear any existing pending channel data
     if user_id in pending_channels:
         del pending_channels[user_id]
@@ -163,18 +163,18 @@ async def admin_done_callback(_, cb: CallbackQuery):
 @app.on_callback_query(filters.regex("cancel_setup"))
 async def cancel_setup_callback(_, cb: CallbackQuery):
     user_id = cb.from_user.id
-    
+
     # Clean up user session
     if user_id in auto_accept_running:
         for chat_id in auto_accept_running[user_id]:
             auto_accept_running[user_id][chat_id] = False
         del auto_accept_running[user_id]
-    
+
     if user_id in pending_channels:
         del pending_channels[user_id]
-    
+
     user_states[user_id] = UserState.IDLE
-    
+
     await cb.answer("Setup cancelled!", show_alert=False)
     await cb.message.edit_text("❌ **Setup Cancelled**\n\nYou can start again anytime with /pendingaccept")
 
@@ -318,7 +318,7 @@ async def stop_accept(_, m: Message):
         del auto_accept_running[user_id]
     if user_id in pending_channels:
         del pending_channels[user_id]
-    
+
     user_states[user_id] = UserState.IDLE
 
     await m.reply_text("✅ **Auto-accept process stopped successfully!**\n\n📝 **Session cleared** - You can start fresh with /pendingaccept")
@@ -327,23 +327,23 @@ async def stop_accept(_, m: Message):
 async def force_cleanup(_, m: Message):
     """Force cleanup user session if stuck"""
     user_id = m.from_user.id
-    
+
     # Force cleanup all user data
     cleanup_count = 0
-    
+
     if user_id in auto_accept_running:
         for chat_id in auto_accept_running[user_id]:
             auto_accept_running[user_id][chat_id] = False
         del auto_accept_running[user_id]
         cleanup_count += 1
-    
+
     if user_id in pending_channels:
         del pending_channels[user_id]
         cleanup_count += 1
-    
+
     user_states[user_id] = UserState.IDLE
     cleanup_count += 1
-    
+
     await m.reply_text(
         f"🧹 **Force Cleanup Complete!**\n\n"
         f"✅ Cleaned {cleanup_count} session items\n"
@@ -361,19 +361,19 @@ async def show_stats(_, m: Message):
         try:
             total_users = all_users()
             total_groups = all_groups()
-            
+
             # Check if any auto-accept processes are running
             active_processes = 0
             if user_id in auto_accept_running:
                 active_processes = sum(1 for running in auto_accept_running[user_id].values() if running)
-            
+
             general_stats = f"📊 **Bot Statistics**\n\n" \
                            f"👥 **Total Users:** {total_users}\n" \
                            f"🏠 **Total Groups/Channels:** {total_groups}\n" \
                            f"🔄 **Your Active Processes:** {active_processes}\n\n" \
                            f"💡 **To see channel-specific stats:**\n" \
                            f"Use `/pendingaccept` to setup a channel first, then use `/stats` again."
-            
+
             await m.reply_text(general_stats)
         except Exception as e:
             await m.reply_text(f"📊 **Bot Statistics**\n\n❌ **Error getting statistics:** {str(e)}\n\n💡 Use `/pendingaccept` to setup a channel for detailed stats.")
@@ -386,10 +386,10 @@ async def show_stats(_, m: Message):
     try:
         # Create loading message
         loading_msg = await m.reply_text("🔄 **Loading statistics...**")
-        
+
         # Import the function from user_bot
         from user_bot import get_pending_requests, get_user_info_from_request
-        
+
         pending_requests = await get_pending_requests(chat_id)
         pending_count = len(pending_requests)
 
@@ -413,9 +413,9 @@ async def show_stats(_, m: Message):
 
             if len(pending_requests) > 5:
                 stats_text += f"... and {len(pending_requests) - 5} more\n\n"
-            
+
             stats_text += "**📝 Note:** Users with too many channels/groups or deleted accounts will be automatically ignored during processing.\n\n"
-            
+
             if not is_running:
                 stats_text += "💡 **Tip:** Use `/pendingaccept` with your invite link to start processing these requests!"
         else:
@@ -434,7 +434,7 @@ async def show_stats(_, m: Message):
                     f"• Check if you still have admin permissions\n" \
                     f"• Use `/cleanup` to reset session\n" \
                     f"• Try `/pendingaccept` with a fresh invite link"
-        
+
         try:
             await loading_msg.edit_text(error_text)
         except:
@@ -448,21 +448,21 @@ async def approve(_, m: Message):
     kk = m.from_user
     try:
         add_group(m.chat.id)
-        
+
         # Auto-approve the join request
         await app.approve_chat_join_request(op.id, kk.id)
         print(f"✅ Auto-approved join request from {kk.first_name or 'Unknown'} (ID: {kk.id}) in {op.title or 'Unknown'}")
-        
+
         # Add user to database immediately
         add_user(kk.id)
-        
+
         # Send welcome message with proper delay and error handling
         try:
             await asyncio.sleep(2)  # Longer delay to ensure bot is ready
             await send_welcome_message(kk)
         except Exception as welcome_error:
             print(f"⚠️ Welcome message failed, user will get it when they /start: {welcome_error}")
-        
+
     except errors.ChatAdminRequired:
         print(f"❌ Bot needs admin permissions to approve requests in {op.title}")
     except errors.PeerIdInvalid as e:
@@ -481,7 +481,7 @@ async def welcome_new_members(_, m: Message):
         if not new_member.is_bot:  # Don't welcome other bots
             print(f"👋 New member joined: {new_member.first_name or 'Unknown'} (ID: {new_member.id})")
             add_user(new_member.id)
-            
+
             # Send welcome with error handling
             try:
                 await asyncio.sleep(2)  # Longer delay for bot readiness
@@ -501,16 +501,16 @@ async def send_welcome_message(user):
                 print(f"❌ Failed to establish bot connection: {conn_error}")
                 # Try sending anyway in case bot is actually connected
                 pass
-        
+
         img = random.choice(images)  # Choose a random image
-        
+
         # Ensure user ID is valid integer
         user_id = int(user.id) if hasattr(user, 'id') else user
         user_name = getattr(user, 'first_name', 'Unknown') or 'Unknown'
-        
+
         # Create user mention properly
         user_mention = f"[{user_name}](tg://user?id={user_id})"
-        
+
         welcome_caption = f"**🎉 Hello {user_mention}! Your request has been approved ✔️**\n\n" \
                          f"**Welcome to our community!** 🌟\n\n" \
                          f"📱 **Click /start to unlock amazing features:**\n" \
@@ -521,7 +521,7 @@ async def send_welcome_message(user):
                          f"📢 @JNKBACKUP\n" \
                          f"🤖 @JNK_BOTS\n\n" \
                          f"**Enjoy your stay!** 😊"
-        
+
         # Try to send welcome message - this now works for all users
         try:
             await app.send_photo(
@@ -530,7 +530,7 @@ async def send_welcome_message(user):
                 caption=welcome_caption
             )
             print(f"📸 Welcome photo sent to {user_name} (ID: {user_id})")
-            
+
         except (errors.PeerIdInvalid, errors.UserIsBlocked):
             # User hasn't started bot or blocked it - but still add to database
             print(f"⚠️ User {user_name} (ID: {user_id}) hasn't started the bot or blocked it")
@@ -539,14 +539,14 @@ async def send_welcome_message(user):
                 print(f"✅ User {user_id} added to database for future welcome")
             except:
                 pass
-            
+
         except Exception as photo_err:
             print(f"⚠️ Error sending welcome photo to {user_name}: {photo_err}")
             # Try sending text message instead
             try:
                 await app.send_message(user_id, welcome_caption)
                 print(f"💬 Welcome text sent to {user_name} (ID: {user_id})")
-                
+
             except (errors.PeerIdInvalid, errors.UserIsBlocked):
                 print(f"⚠️ User {user_name} (ID: {user_id}) hasn't started the bot")
                 # Still add to database even if message fails
@@ -555,7 +555,7 @@ async def send_welcome_message(user):
                     print(f"✅ User {user_id} added to database")
                 except:
                     pass
-                
+
             except Exception as text_err:
                 print(f"❌ Could not send any welcome message to user {user_id}: {text_err}")
                 # Still add to database 
@@ -564,7 +564,7 @@ async def send_welcome_message(user):
                     print(f"✅ User {user_id} added to database")
                 except:
                     pass
-                
+
     except Exception as e:
         print(f"❌ Unexpected error in send_welcome_message: {e}")
         # Still try to add user to database
@@ -581,10 +581,10 @@ async def send_welcome_message(user):
 async def op(_, m: Message):
     user_id = m.from_user.id
     user_name = m.from_user.first_name or "there"
-    
+
     try:
         await app.get_chat_member(cfg.CHID, user_id)
-        
+
         if m.chat.type == enums.ChatType.PRIVATE:
             add_user(user_id)
             user_states[user_id] = UserState.IDLE
@@ -658,7 +658,7 @@ Your user account will auto-leave channels after processing or 6 hours to preven
                 f"👆 **Click the button below to get started!**",
                 reply_markup=keyboard
             )
-            
+
         print(f"✅ {user_name} (ID: {user_id}) started the bot!")
 
     except UserNotParticipant:
@@ -674,7 +674,7 @@ Your user account will auto-leave channels after processing or 6 hours to preven
             f"**After joining, click 'Check Again' below! 👇**",
             reply_markup=key
         )
-        
+
     except Exception as e:
         print(f"❌ Error in start command for user {user_id}: {e}")
         await m.reply_text(
@@ -693,7 +693,7 @@ async def chk(_, cb : CallbackQuery):
         if cb.message.chat.type == enums.ChatType.PRIVATE:
             add_user(cb.from_user.id)
             user_states[cb.from_user.id] = UserState.IDLE
-            
+
             # Send full welcome message when user joins
             user_name = cb.from_user.first_name or "there"
             welcome_text = f"""**🎉 Welcome {user_name} to Auto-Approve Bot!**
@@ -729,7 +729,7 @@ Thanks for joining our channel! 🎊
                 )
             except:
                 await cb.message.edit_text(welcome_text)
-            
+
         print(cb.from_user.first_name + " joined via callback and started the bot!")
         await cb.answer("✅ Welcome! You're now verified and can use all bot features!", show_alert=False)
     except UserNotParticipant:
