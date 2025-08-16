@@ -406,11 +406,15 @@ async def approve(_, m: Message):
         await app.approve_chat_join_request(op.id, kk.id)
         print(f"✅ Auto-approved join request from {kk.first_name or 'Unknown'} (ID: {kk.id}) in {op.title or 'Unknown'}")
         
-        # Send welcome message with image - add delay to ensure bot is ready
-        await asyncio.sleep(1)
-        await send_welcome_message(kk)
-        
+        # Add user to database immediately
         add_user(kk.id)
+        
+        # Send welcome message with proper delay and error handling
+        try:
+            await asyncio.sleep(2)  # Longer delay to ensure bot is ready
+            await send_welcome_message(kk)
+        except Exception as welcome_error:
+            print(f"⚠️ Welcome message failed, user will get it when they /start: {welcome_error}")
         
     except errors.ChatAdminRequired:
         print(f"❌ Bot needs admin permissions to approve requests in {op.title}")
@@ -429,34 +433,41 @@ async def welcome_new_members(_, m: Message):
     for new_member in m.new_chat_members:
         if not new_member.is_bot:  # Don't welcome other bots
             print(f"👋 New member joined: {new_member.first_name or 'Unknown'} (ID: {new_member.id})")
-            await asyncio.sleep(1)  # Small delay
-            await send_welcome_message(new_member)
             add_user(new_member.id)
+            
+            # Send welcome with error handling
+            try:
+                await asyncio.sleep(2)  # Longer delay for bot readiness
+                await send_welcome_message(new_member)
+            except Exception as welcome_error:
+                print(f"⚠️ Welcome message failed for new member, they'll get it when they /start: {welcome_error}")
 
 async def send_welcome_message(user):
     """Send welcome message to approved user"""
     try:
-        # Wait for bot to be fully ready with timeout
-        max_wait = 10  # Maximum 10 seconds to wait
-        wait_time = 0
-        while not app.is_connected and wait_time < max_wait:
-            print(f"⚠️ Bot not connected, waiting... ({wait_time}s)")
-            await asyncio.sleep(1)
-            wait_time += 1
-        
+        # Check if bot is connected, if not try to start it
         if not app.is_connected:
-            print(f"❌ Bot still not connected after {max_wait}s, skipping welcome message")
-            return
+            try:
+                await app.start()
+                print("🔄 Bot connection established for welcome message")
+            except Exception as conn_error:
+                print(f"❌ Failed to establish bot connection: {conn_error}")
+                # Try sending anyway in case bot is actually connected
+                pass
         
         img = random.choice(images)  # Choose a random image
         
         # Create user mention properly
         user_mention = f"[{user.first_name or 'there'}](tg://user?id={user.id})"
         
-        # Try to send welcome message regardless of whether user started bot
+        # Try to send welcome message with better error handling
         try:
+            # Ensure user ID is valid integer
+            user_id = int(user.id) if hasattr(user, 'id') else user
+            user_name = getattr(user, 'first_name', 'Unknown') or 'Unknown'
+            
             await app.send_photo(
-                user.id,  # Send to the user who requested to join
+                user_id,  # Send to the user who requested to join
                 img,  # The chosen image URL
                 caption=f"**🎉 Hello {user_mention}! Your request has been approved ✔️**\n\n"
                        f"**Welcome to our community!** 🌟\n\n"
@@ -469,20 +480,20 @@ async def send_welcome_message(user):
                        f"🤖 @JNK_BOTS\n\n"
                        f"**Enjoy your stay!** 😊"
             )
-            print(f"📸 Welcome photo sent to {user.first_name or 'Unknown'} (ID: {user.id})")
+            print(f"📸 Welcome photo sent to {user_name} (ID: {user_id})")
             
         except (errors.PeerIdInvalid, errors.UserIsBlocked) as e:
-            # User hasn't started bot or blocked it - send to a log channel instead
-            print(f"⚠️ User {user.id} hasn't started the bot or blocked it. Logging approval.")
+            # User hasn't started bot or blocked it
+            user_id = getattr(user, 'id', 'Unknown')
+            user_name = getattr(user, 'first_name', 'Unknown') or 'Unknown'
+            print(f"⚠️ User {user_id} hasn't started the bot or blocked it. Will get welcome when they /start.")
             
-            # Still consider this successful since user was approved
-            log_message = f"✅ **User Approved Successfully**\n\n" \
-                         f"👤 **User:** {user.first_name or 'Unknown'} (ID: {user.id})\n" \
-                         f"📝 **Note:** User hasn't started the bot yet, so welcome message couldn't be delivered.\n" \
-                         f"💡 **Action:** User will receive welcome when they start the bot."
-            
-            # You can send this to your log channel if you have one
-            # await app.send_message(YOUR_LOG_CHANNEL_ID, log_message)
+            # Store user for welcome when they start
+            try:
+                add_user(int(user_id))
+                print(f"✅ User {user_id} added to database for future welcome")
+            except:
+                pass
             
         except Exception as photo_err:
             print(f"⚠️ Error sending welcome photo to {user.id}: {photo_err}")
@@ -527,8 +538,10 @@ async def op(_, m: Message):
             add_user(user_id)
             user_states[user_id] = UserState.IDLE
 
-            # Enhanced welcome message
+            # Check if this user was recently approved and send special welcome
             welcome_text = f"""**🎉 Welcome {user_name} to Auto-Approve Bot!**
+
+✅ **Your join request has been approved!** Thank you for joining our community!
 
 🤖 **Your Personal Telegram Assistant:**
 ✅ **Instant Auto-Approval** - Join requests approved immediately
@@ -726,10 +739,24 @@ if __name__ == "__main__":
         print("✅ User bot started successfully!")
         try:
             print("🚀 Starting main bot...")
-            app.run()  # Start main bot
+            # Start bot and wait for connection
+            app.start()
+            print("✅ Main bot connected successfully!")
+            
+            # Keep the bot running
+            app.idle()
+        except Exception as e:
+            print(f"❌ Error running main bot: {e}")
         finally:
+            try:
+                app.stop()
+            except:
+                pass
             stop_user_bot()  # Clean shutdown of user bot
     else:
         print("❌ Failed to start user bot!")
         print("🚀 Starting main bot anyway...")
-        app.run()  # Start main bot anyway
+        try:
+            app.run()  # Start main bot anyway
+        except Exception as e:
+            print(f"❌ Error running main bot: {e}")
