@@ -27,11 +27,17 @@ class UserState:
 
 def extract_invite_link_info(invite_link):
     """Extract channel/group info from invite link"""
+    # First check if it's a valid telegram link
+    if not any(domain in invite_link.lower() for domain in ['t.me', 'telegram.me']):
+        return None
+    
     patterns = [
         r't\.me/joinchat/([A-Za-z0-9_-]+)',
         r't\.me/\+([A-Za-z0-9_-]+)',
         r'telegram\.me/joinchat/([A-Za-z0-9_-]+)',
-        r'telegram\.me/\+([A-Za-z0-9_-]+)'
+        r'telegram\.me/\+([A-Za-z0-9_-]+)',
+        r't\.me/([A-Za-z0-9_]+)',  # For public channels/groups
+        r'telegram\.me/([A-Za-z0-9_]+)'  # For public channels/groups
     ]
     
     for pattern in patterns:

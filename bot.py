@@ -94,7 +94,7 @@ async def handle_invite_link(_, m: Message):
         except errors.UserAlreadyParticipant:
             # Already in the chat, get chat info
             try:
-                chat = await user_app.get_chat(invite_hash)
+                chat = await user_app.get_chat(invite_link)
                 chat_id = chat.id
                 chat_title = chat.title or "Unknown"
 
@@ -125,8 +125,20 @@ async def handle_invite_link(_, m: Message):
     except errors.InviteHashExpired:
         await m.reply_text("❌ **Invite link has expired!** Please get a new invite link.")
         user_states[user_id] = UserState.IDLE
+    except errors.UsernameNotOccupied:
+        await m.reply_text("❌ **Invalid username/chat!** The username in the link doesn't exist or the chat is no longer available.")
+        user_states[user_id] = UserState.IDLE
+    except errors.UsernameInvalid:
+        await m.reply_text("❌ **Invalid username format!** Please check the invite link format.")
+        user_states[user_id] = UserState.IDLE
     except Exception as e:
-        await m.reply_text(f"❌ **Failed to join:** {str(e)}\n\nPlease check the invite link and try again.")
+        error_msg = str(e).lower()
+        if "username_not_occupied" in error_msg:
+            await m.reply_text("❌ **Chat not found!** The username/chat in the link doesn't exist or is no longer available.")
+        elif "username_invalid" in error_msg:
+            await m.reply_text("❌ **Invalid link format!** Please send a valid Telegram invite link.")
+        else:
+            await m.reply_text(f"❌ **Failed to join:** {str(e)}\n\nPlease check the invite link and try again.")
         user_states[user_id] = UserState.IDLE
 
 @app.on_message(filters.command("admindone") & filters.private)
