@@ -419,14 +419,28 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
                     f"⏭️ Ignored: {ignored_count}\n\n" \
                     f"{leave_status}"
 
-    # Send final status
-    try:
-        if status_msg:
-            await status_msg.edit_text(final_text)
-        else:
-            await bot_app.send_message(user_id, final_text)
-    except:
-        await bot_app.send_message(user_id, final_text)
+    # Send final status with retry mechanism for database locks
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            if status_msg:
+                await status_msg.edit_text(final_text)
+            else:
+                await bot_app.send_message(user_id, final_text)
+            break  # Success, exit retry loop
+        except Exception as final_err:
+            if "database is locked" in str(final_err).lower() and attempt < max_retries - 1:
+                print(f"⚠️ Database locked, retrying in {(attempt + 1) * 2} seconds...")
+                await asyncio.sleep((attempt + 1) * 2)  # Progressive delay
+                continue
+            else:
+                print(f"❌ Could not send final message after {attempt + 1} attempts: {final_err}")
+                # Try one more time with a simple message
+                try:
+                    await bot_app.send_message(user_id, f"✅ **Auto-accept completed for {chat_title}!**\n\n📊 Accepted: {accepted_count} | Failed: {failed_count} | Ignored: {ignored_count}")
+                except:
+                    print(f"❌ Failed to send even simple final message")
+                break
 
     # Clean up the running state
     if user_id in auto_accept_running and chat_id in auto_accept_running[user_id]:

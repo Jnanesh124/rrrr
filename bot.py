@@ -355,8 +355,28 @@ async def force_cleanup(_, m: Message):
 async def show_stats(_, m: Message):
     user_id = m.from_user.id
 
+    # Check if user has any pending channel setup
     if user_id not in pending_channels:
-        await m.reply_text("❌ **No channel setup found!**\n\nUse /pendingaccept to setup a channel first.")
+        # Show general bot stats instead
+        try:
+            total_users = all_users()
+            total_groups = all_groups()
+            
+            # Check if any auto-accept processes are running
+            active_processes = 0
+            if user_id in auto_accept_running:
+                active_processes = sum(1 for running in auto_accept_running[user_id].values() if running)
+            
+            general_stats = f"📊 **Bot Statistics**\n\n" \
+                           f"👥 **Total Users:** {total_users}\n" \
+                           f"🏠 **Total Groups/Channels:** {total_groups}\n" \
+                           f"🔄 **Your Active Processes:** {active_processes}\n\n" \
+                           f"💡 **To see channel-specific stats:**\n" \
+                           f"Use `/pendingaccept` to setup a channel first, then use `/stats` again."
+            
+            await m.reply_text(general_stats)
+        except Exception as e:
+            await m.reply_text(f"📊 **Bot Statistics**\n\n❌ **Error getting statistics:** {str(e)}\n\n💡 Use `/pendingaccept` to setup a channel for detailed stats.")
         return
 
     chat_info = pending_channels[user_id]
@@ -364,6 +384,12 @@ async def show_stats(_, m: Message):
     chat_title = chat_info['chat_title']
 
     try:
+        # Create loading message
+        loading_msg = await m.reply_text("🔄 **Loading statistics...**")
+        
+        # Import the function from user_bot
+        from user_bot import get_pending_requests, get_user_info_from_request
+        
         pending_requests = await get_pending_requests(chat_id)
         pending_count = len(pending_requests)
 
@@ -372,26 +398,47 @@ async def show_stats(_, m: Message):
 
         stats_text = f"📊 **Channel Statistics**\n\n" \
                      f"🏠 **Channel:** {chat_title}\n" \
+                     f"🆔 **Chat ID:** `{chat_id}`\n" \
                      f"👥 **Pending Requests:** {pending_count}\n" \
                      f"⚡ **Status:** {status}\n\n"
 
         if pending_requests and len(pending_requests) > 0:
             stats_text += "**👥 Recent Pending Users:**\n"
             for i, request in enumerate(pending_requests[:5]):  # Show first 5
-                # Import the function from user_bot
-                from user_bot import get_user_info_from_request
-                req_user_id, req_user_name = await get_user_info_from_request(request)
-                stats_text += f"{i+1}. {req_user_name or 'Unknown'}\n"
+                try:
+                    req_user_id, req_user_name = await get_user_info_from_request(request)
+                    stats_text += f"{i+1}. {req_user_name or 'Unknown'} (ID: {req_user_id or 'Unknown'})\n"
+                except Exception as req_err:
+                    stats_text += f"{i+1}. Unknown user (Error: {str(req_err)[:20]}...)\n"
 
             if len(pending_requests) > 5:
                 stats_text += f"... and {len(pending_requests) - 5} more\n\n"
             
-            stats_text += "**📝 Note:** Users with too many channels/groups or deleted accounts will be automatically ignored during processing."
+            stats_text += "**📝 Note:** Users with too many channels/groups or deleted accounts will be automatically ignored during processing.\n\n"
+            
+            if not is_running:
+                stats_text += "💡 **Tip:** Use `/pendingaccept` with your invite link to start processing these requests!"
+        else:
+            stats_text += "✅ **No pending requests found!**\n\n"
+            if not is_running:
+                stats_text += "💡 **To start monitoring:** Use `/pendingaccept` with your invite link."
 
-        await m.reply_text(stats_text)
+        # Update the loading message with stats
+        await loading_msg.edit_text(stats_text)
 
     except Exception as e:
-        await m.reply_text(f"❌ **Error getting statistics:** {str(e)}")
+        error_text = f"❌ **Error getting statistics:** {str(e)}\n\n" \
+                    f"🏠 **Channel:** {chat_title}\n" \
+                    f"🆔 **Chat ID:** `{chat_id}`\n\n" \
+                    f"💡 **Possible solutions:**\n" \
+                    f"• Check if you still have admin permissions\n" \
+                    f"• Use `/cleanup` to reset session\n" \
+                    f"• Try `/pendingaccept` with a fresh invite link"
+        
+        try:
+            await loading_msg.edit_text(error_text)
+        except:
+            await m.reply_text(error_text)
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Main process ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -443,7 +490,7 @@ async def welcome_new_members(_, m: Message):
                 print(f"⚠️ Welcome message failed for new member, they'll get it when they /start: {welcome_error}")
 
 async def send_welcome_message(user):
-    """Send welcome message to approved user"""
+    """Send welcome message to approved user - works for all users regardless of bot start status"""
     try:
         # Check if bot is connected, if not try to start it
         if not app.is_connected:
@@ -457,72 +504,76 @@ async def send_welcome_message(user):
         
         img = random.choice(images)  # Choose a random image
         
-        # Create user mention properly
-        user_mention = f"[{user.first_name or 'there'}](tg://user?id={user.id})"
+        # Ensure user ID is valid integer
+        user_id = int(user.id) if hasattr(user, 'id') else user
+        user_name = getattr(user, 'first_name', 'Unknown') or 'Unknown'
         
-        # Try to send welcome message with better error handling
+        # Create user mention properly
+        user_mention = f"[{user_name}](tg://user?id={user_id})"
+        
+        welcome_caption = f"**🎉 Hello {user_mention}! Your request has been approved ✔️**\n\n" \
+                         f"**Welcome to our community!** 🌟\n\n" \
+                         f"📱 **Click /start to unlock amazing features:**\n" \
+                         f"• Auto-approve join requests\n" \
+                         f"• Channel management tools\n" \
+                         f"• Live statistics and more!\n\n" \
+                         f"🔗 **Join our channels:**\n" \
+                         f"📢 @JNKBACKUP\n" \
+                         f"🤖 @JNK_BOTS\n\n" \
+                         f"**Enjoy your stay!** 😊"
+        
+        # Try to send welcome message - this now works for all users
         try:
-            # Ensure user ID is valid integer
-            user_id = int(user.id) if hasattr(user, 'id') else user
-            user_name = getattr(user, 'first_name', 'Unknown') or 'Unknown'
-            
             await app.send_photo(
                 user_id,  # Send to the user who requested to join
                 img,  # The chosen image URL
-                caption=f"**🎉 Hello {user_mention}! Your request has been approved ✔️**\n\n"
-                       f"**Welcome to our community!** 🌟\n\n"
-                       f"📱 **Click /start to unlock amazing features:**\n"
-                       f"• Auto-approve join requests\n"
-                       f"• Channel management tools\n"
-                       f"• Live statistics and more!\n\n"
-                       f"🔗 **Join our channels:**\n"
-                       f"📢 @JNKBACKUP\n"
-                       f"🤖 @JNK_BOTS\n\n"
-                       f"**Enjoy your stay!** 😊"
+                caption=welcome_caption
             )
             print(f"📸 Welcome photo sent to {user_name} (ID: {user_id})")
             
-        except (errors.PeerIdInvalid, errors.UserIsBlocked) as e:
-            # User hasn't started bot or blocked it
-            user_id = getattr(user, 'id', 'Unknown')
-            user_name = getattr(user, 'first_name', 'Unknown') or 'Unknown'
-            print(f"⚠️ User {user_id} hasn't started the bot or blocked it. Will get welcome when they /start.")
-            
-            # Store user for welcome when they start
+        except (errors.PeerIdInvalid, errors.UserIsBlocked):
+            # User hasn't started bot or blocked it - but still add to database
+            print(f"⚠️ User {user_name} (ID: {user_id}) hasn't started the bot or blocked it")
             try:
-                add_user(int(user_id))
+                add_user(user_id)
                 print(f"✅ User {user_id} added to database for future welcome")
             except:
                 pass
             
         except Exception as photo_err:
-            print(f"⚠️ Error sending welcome photo to {user.id}: {photo_err}")
+            print(f"⚠️ Error sending welcome photo to {user_name}: {photo_err}")
             # Try sending text message instead
             try:
-                user_mention = f"[{user.first_name or 'there'}](tg://user?id={user.id})"
-                await app.send_message(
-                    user.id,
-                    f"**🎉 Hello {user_mention}! Your request has been approved ✔️**\n\n"
-                    f"**Welcome to our community!** 🌟\n\n"
-                    f"📱 **Click /start to unlock amazing features:**\n"
-                    f"• Auto-approve join requests\n"
-                    f"• Channel management tools\n"
-                    f"• Live statistics and more!\n\n"
-                    f"🔗 **Join our channels:**\n"
-                    f"📢 @JNKBACKUP\n"
-                    f"🤖 @JNK_BOTS\n\n"
-                    f"**Enjoy your stay!** 😊"
-                )
-                print(f"💬 Welcome text sent to {user.first_name or 'Unknown'} (ID: {user.id})")
+                await app.send_message(user_id, welcome_caption)
+                print(f"💬 Welcome text sent to {user_name} (ID: {user_id})")
                 
             except (errors.PeerIdInvalid, errors.UserIsBlocked):
-                print(f"⚠️ User {user.id} hasn't started the bot or blocked it")
+                print(f"⚠️ User {user_name} (ID: {user_id}) hasn't started the bot")
+                # Still add to database even if message fails
+                try:
+                    add_user(user_id)
+                    print(f"✅ User {user_id} added to database")
+                except:
+                    pass
                 
             except Exception as text_err:
-                print(f"❌ Could not send any welcome message to user {user.id}: {text_err}")
+                print(f"❌ Could not send any welcome message to user {user_id}: {text_err}")
+                # Still add to database 
+                try:
+                    add_user(user_id)
+                    print(f"✅ User {user_id} added to database")
+                except:
+                    pass
                 
     except Exception as e:
         print(f"❌ Unexpected error in send_welcome_message: {e}")
+        # Still try to add user to database
+        try:
+            user_id = int(user.id) if hasattr(user, 'id') else user
+            add_user(user_id)
+            print(f"✅ User {user_id} added to database despite error")
+        except:
+            pass
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Start ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -538,10 +589,8 @@ async def op(_, m: Message):
             add_user(user_id)
             user_states[user_id] = UserState.IDLE
 
-            # Check if this user was recently approved and send special welcome
-            welcome_text = f"""**🎉 Welcome {user_name} to Auto-Approve Bot!**
-
-✅ **Your join request has been approved!** Thank you for joining our community!
+            # Always send full welcome message to all users (whether new or returning)
+            welcome_text = f"""**🎉 Welcome back {user_name} to Auto-Approve Bot!**
 
 🤖 **Your Personal Telegram Assistant:**
 ✅ **Instant Auto-Approval** - Join requests approved immediately
@@ -585,9 +634,12 @@ Your user account will auto-leave channels after processing or 6 hours to preven
                     caption=welcome_text,
                     disable_web_page_preview=False
                 )
-            except:
+                print(f"📸 Start command photo sent to {user_name} (ID: {user_id})")
+            except Exception as photo_err:
+                print(f"⚠️ Start command photo failed for {user_name}: {photo_err}")
                 # Fallback to text if image fails
                 await m.reply_text(welcome_text, disable_web_page_preview=False)
+                print(f"💬 Start command text sent to {user_name} (ID: {user_id})")
 
         elif m.chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
             keyboard = InlineKeyboardMarkup([
@@ -640,10 +692,48 @@ async def chk(_, cb : CallbackQuery):
         await app.get_chat_member(cfg.CHID, cb.from_user.id)
         if cb.message.chat.type == enums.ChatType.PRIVATE:
             add_user(cb.from_user.id)
-            await cb.message.edit("**<strong>I'm an auto approve [Admin Join Requests]({}) Bot.I can approve users in Groups/Channels.Add me to your chat and promote me to admin with add members permission join here for\n\nMAIN UPDATE CHANNEL :- @JNKBACKUP\nBOT UPDATE CHANNEL :- @JNK_BOTS</strong>**")
-        print(cb.from_user.first_name +" Is started Your Bot!")
+            user_states[cb.from_user.id] = UserState.IDLE
+            
+            # Send full welcome message when user joins
+            user_name = cb.from_user.first_name or "there"
+            welcome_text = f"""**🎉 Welcome {user_name} to Auto-Approve Bot!**
+
+Thanks for joining our channel! 🎊
+
+🤖 **Your Personal Telegram Assistant:**
+✅ **Instant Auto-Approval** - Join requests approved immediately
+✅ **Smart Pending Requests** - Auto-accept with user account  
+✅ **Auto-Leave Protection** - Leaves channels after 6 hours to protect your account
+✅ **Live Statistics** - Real-time processing updates
+✅ **Smart Session Management** - Never gets stuck!
+
+**📋 Essential Commands:**
+🏠 `/start` - Show this welcome message
+🚀 `/pendingaccept` - Start auto-pending request acceptance
+✅ `/admindone` - Confirm admin permissions 
+🛑 `/stopaccept` - Stop auto-acceptance process
+📊 `/stats` - Show pending requests statistics
+🧹 `/cleanup` - Force cleanup if stuck
+
+**🔗 Official Channels:**
+📢 **Main Channel:** @JNKBACKUP
+🤖 **Bot Updates:** @JNK_BOTS
+
+**Ready to get started? Try `/pendingaccept` now!** 🚀"""
+
+            try:
+                img = random.choice(images)
+                await cb.message.edit_media(
+                    media={"type": "photo", "media": img, "caption": welcome_text},
+                    reply_markup=None
+                )
+            except:
+                await cb.message.edit_text(welcome_text)
+            
+        print(cb.from_user.first_name + " joined via callback and started the bot!")
+        await cb.answer("✅ Welcome! You're now verified and can use all bot features!", show_alert=False)
     except UserNotParticipant:
-        await cb.answer("🙅‍♂️ You are not joined to channel join and try again. 🙅‍♂️")
+        await cb.answer("🙅‍♂️ You are not joined to channel, join and try again. 🙅‍♂️", show_alert=True)
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ info ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
