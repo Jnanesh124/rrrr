@@ -436,104 +436,188 @@ async def welcome_new_members(_, m: Message):
 async def send_welcome_message(user):
     """Send welcome message to approved user"""
     try:
-        # Ensure the bot client is ready
+        # Wait for bot to be fully ready with timeout
+        max_wait = 10  # Maximum 10 seconds to wait
+        wait_time = 0
+        while not app.is_connected and wait_time < max_wait:
+            print(f"⚠️ Bot not connected, waiting... ({wait_time}s)")
+            await asyncio.sleep(1)
+            wait_time += 1
+        
         if not app.is_connected:
-            print(f"⚠️ Bot not connected, waiting...")
-            await asyncio.sleep(2)
+            print(f"❌ Bot still not connected after {max_wait}s, skipping welcome message")
+            return
         
         img = random.choice(images)  # Choose a random image
         
         # Create user mention properly
         user_mention = f"[{user.first_name or 'there'}](tg://user?id={user.id})"
         
-        await app.send_photo(
-            user.id,  # Send to the user who requested to join
-            img,  # The chosen image URL
-            caption=f"**Hello {user_mention}! Your request has been approved ✔️\n\nClick /start for more features\n\n©️@JNKBACKUP @JNK_BOTS**"
-        )
-        print(f"📸 Welcome photo sent to {user.first_name or 'Unknown'} (ID: {user.id})")
-        
-    except errors.PeerIdInvalid:
-        print(f"⚠️ User {user.id} hasn't started the bot, couldn't send welcome photo")
-    except errors.UserIsBlocked:
-        print(f"⚠️ User {user.id} has blocked the bot")
-    except Exception as photo_err:
-        print(f"⚠️ Error sending welcome photo to {user.id}: {photo_err}")
-        # Try sending text message instead
+        # Try to send welcome message regardless of whether user started bot
         try:
-            user_mention = f"[{user.first_name or 'there'}](tg://user?id={user.id})"
-            await app.send_message(
-                user.id,
-                f"**Hello {user_mention}! Your request has been approved ✔️\n\nClick /start for more features\n\n©️@JNKBACKUP @JNK_BOTS**"
+            await app.send_photo(
+                user.id,  # Send to the user who requested to join
+                img,  # The chosen image URL
+                caption=f"**🎉 Hello {user_mention}! Your request has been approved ✔️**\n\n"
+                       f"**Welcome to our community!** 🌟\n\n"
+                       f"📱 **Click /start to unlock amazing features:**\n"
+                       f"• Auto-approve join requests\n"
+                       f"• Channel management tools\n"
+                       f"• Live statistics and more!\n\n"
+                       f"🔗 **Join our channels:**\n"
+                       f"📢 @JNKBACKUP\n"
+                       f"🤖 @JNK_BOTS\n\n"
+                       f"**Enjoy your stay!** 😊"
             )
-            print(f"💬 Welcome text sent to {user.first_name or 'Unknown'} (ID: {user.id})")
-        except Exception as text_err:
-            print(f"❌ Could not send any welcome message to user {user.id}: {text_err}")
+            print(f"📸 Welcome photo sent to {user.first_name or 'Unknown'} (ID: {user.id})")
+            
+        except (errors.PeerIdInvalid, errors.UserIsBlocked) as e:
+            # User hasn't started bot or blocked it - send to a log channel instead
+            print(f"⚠️ User {user.id} hasn't started the bot or blocked it. Logging approval.")
+            
+            # Still consider this successful since user was approved
+            log_message = f"✅ **User Approved Successfully**\n\n" \
+                         f"👤 **User:** {user.first_name or 'Unknown'} (ID: {user.id})\n" \
+                         f"📝 **Note:** User hasn't started the bot yet, so welcome message couldn't be delivered.\n" \
+                         f"💡 **Action:** User will receive welcome when they start the bot."
+            
+            # You can send this to your log channel if you have one
+            # await app.send_message(YOUR_LOG_CHANNEL_ID, log_message)
+            
+        except Exception as photo_err:
+            print(f"⚠️ Error sending welcome photo to {user.id}: {photo_err}")
+            # Try sending text message instead
+            try:
+                user_mention = f"[{user.first_name or 'there'}](tg://user?id={user.id})"
+                await app.send_message(
+                    user.id,
+                    f"**🎉 Hello {user_mention}! Your request has been approved ✔️**\n\n"
+                    f"**Welcome to our community!** 🌟\n\n"
+                    f"📱 **Click /start to unlock amazing features:**\n"
+                    f"• Auto-approve join requests\n"
+                    f"• Channel management tools\n"
+                    f"• Live statistics and more!\n\n"
+                    f"🔗 **Join our channels:**\n"
+                    f"📢 @JNKBACKUP\n"
+                    f"🤖 @JNK_BOTS\n\n"
+                    f"**Enjoy your stay!** 😊"
+                )
+                print(f"💬 Welcome text sent to {user.first_name or 'Unknown'} (ID: {user.id})")
+                
+            except (errors.PeerIdInvalid, errors.UserIsBlocked):
+                print(f"⚠️ User {user.id} hasn't started the bot or blocked it")
+                
+            except Exception as text_err:
+                print(f"❌ Could not send any welcome message to user {user.id}: {text_err}")
+                
+    except Exception as e:
+        print(f"❌ Unexpected error in send_welcome_message: {e}")
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Start ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 @app.on_message(filters.command("start"))
-async def op(_, m :Message):
+async def op(_, m: Message):
+    user_id = m.from_user.id
+    user_name = m.from_user.first_name or "there"
+    
     try:
-        await app.get_chat_member(cfg.CHID, m.from_user.id)
+        await app.get_chat_member(cfg.CHID, user_id)
+        
         if m.chat.type == enums.ChatType.PRIVATE:
-            add_user(m.from_user.id)
-            user_states[m.from_user.id] = UserState.IDLE
+            add_user(user_id)
+            user_states[user_id] = UserState.IDLE
 
-            welcome_text = """**🎉 Welcome to Auto-Approve Bot!**
+            # Enhanced welcome message
+            welcome_text = f"""**🎉 Welcome {user_name} to Auto-Approve Bot!**
 
-🤖 **Bot Features:**
-✅ Auto-approve join requests immediately
-✅ Auto-accept pending requests with user account
-✅ Auto-leave channel after completing all requests or 6 hours
-✅ Live statistics and logs
-✅ Session cleanup to prevent getting stuck
+🤖 **Your Personal Telegram Assistant:**
+✅ **Instant Auto-Approval** - Join requests approved immediately
+✅ **Smart Pending Requests** - Auto-accept with user account  
+✅ **Auto-Leave Protection** - Leaves channels after 6 hours to protect your account
+✅ **Live Statistics** - Real-time processing updates
+✅ **Smart Session Management** - Never gets stuck!
 
-**📋 Available Commands:**
-/start - Show this welcome message
-/pendingaccept - Start auto-pending request acceptance
-/admindone - Confirm admin permissions and start auto-accept
-/stopaccept - Stop auto-acceptance process
-/stats - Show pending requests statistics
-/cleanup - Force cleanup if bot seems stuck
+**📋 Essential Commands:**
+🏠 `/start` - Show this welcome message
+🚀 `/pendingaccept` - Start auto-pending request acceptance
+✅ `/admindone` - Confirm admin permissions 
+🛑 `/stopaccept` - Stop auto-acceptance process
+📊 `/stats` - Show pending requests statistics
+🧹 `/cleanup` - Force cleanup if stuck
 
-**🔗 Channels:**
-📢 MAIN CHANNEL: @JNKBACKUP
-🤖 BOT UPDATE CHANNEL: @JNK_BOTS
+**🔗 Official Channels:**
+📢 **Main Channel:** @JNKBACKUP
+🤖 **Bot Updates:** @JNK_BOTS
 
-**🚀 To get started with pending request acceptance:**
-1. Click /pendingaccept
-2. Send your channel/group invite link
-3. Click /admindone after giving admin permissions
-4. Watch the magic happen! ✨
-5. User account will automatically leave when done
+**🚀 Quick Start Guide:**
+1️⃣ Use `/pendingaccept` command
+2️⃣ Send your channel/group invite link  
+3️⃣ Give me admin permissions with "Add Members" right
+4️⃣ Click `/admindone` to start the magic! ✨
+5️⃣ Watch as all pending requests get approved automatically!
 
-**🔄 Need to process requests again?**
-Simply use /pendingaccept command again and send the invite link - the user account will rejoin automatically!"""
+**🔄 Pro Tip:** 
+User account automatically rejoins when you use `/pendingaccept` again - no manual setup needed!
 
-            await m.reply_text(welcome_text, disable_web_page_preview=False)
+**🛡️ Account Protection:**
+Your user account will auto-leave channels after processing or 6 hours to prevent Telegram limitations.
 
-        elif m.chat.type == enums.ChatType.GROUP or enums.ChatType.SUPERGROUP:
-            keyboar = InlineKeyboardMarkup(
-                [
-                    [
-                        InlineKeyboardButton("🍿BACKUP CHANNEL🍿", url="http://t.me/JNKBACKUP")
-                    ]
-                ]
-            )
+**Ready to get started? Try `/pendingaccept` now!** 🚀"""
+
+            # Send welcome with a random image
+            try:
+                img = random.choice(images)
+                await m.reply_photo(
+                    photo=img,
+                    caption=welcome_text,
+                    disable_web_page_preview=False
+                )
+            except:
+                # Fallback to text if image fails
+                await m.reply_text(welcome_text, disable_web_page_preview=False)
+
+        elif m.chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🍿 BACKUP CHANNEL 🍿", url="https://t.me/JNKBACKUP")],
+                [InlineKeyboardButton("🤖 BOT UPDATES 🤖", url="https://t.me/JNK_BOTS")],
+                [InlineKeyboardButton("💬 Start Bot Privately", url=f"https://t.me/{app.me.username}?start=welcome")]
+            ])
             add_group(m.chat.id)
-            await m.reply_text("** Hello start me private for more details @JNKBACKUP**")
-        print(m.from_user.first_name +" Is started Your Bot!")
+            await m.reply_text(
+                f"**👋 Hello {user_name}!**\n\n"
+                f"🤖 **I'm an Auto-Approve Bot** that can instantly approve join requests!\n\n"
+                f"📱 **Start me privately** to unlock powerful features like:\n"
+                f"• Auto-accept pending requests\n"
+                f"• Channel management tools\n"
+                f"• Live statistics and more!\n\n"
+                f"👆 **Click the button below to get started!**",
+                reply_markup=keyboard
+            )
+            
+        print(f"✅ {user_name} (ID: {user_id}) started the bot!")
 
     except UserNotParticipant:
-        key = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton("🔎 Check Again 🚀", "chk")
-                ]
-            ]
+        key = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔎 Check Again 🚀", callback_data="chk")],
+            [InlineKeyboardButton("📢 Join Channel", url=f"https://t.me/{cfg.FSUB}")]
+        ])
+        await m.reply_text(
+            f"**🔒 Hello {user_name}!**\n\n"
+            f"**To use this bot, please join our channel first:**\n\n"
+            f"📢 **Channel:** @{cfg.FSUB}\n"
+            f"🤖 **Bot Updates:** @JNK_BOTS\n\n"
+            f"**After joining, click 'Check Again' below! 👇**",
+            reply_markup=key
         )
-        await m.reply_text("**<strong>Hello {}  its good to see u again\n join below all channel\n\n@JNK_BOTS\n©@JNKBACKUP</strong>**".format(cfg.FSUB), reply_markup=key)
+        
+    except Exception as e:
+        print(f"❌ Error in start command for user {user_id}: {e}")
+        await m.reply_text(
+            f"**⚠️ Hello {user_name}!**\n\n"
+            f"There was a temporary issue. Please try again in a moment.\n\n"
+            f"📢 **Main Channel:** @JNKBACKUP\n"
+            f"🤖 **Bot Updates:** @JNK_BOTS"
+        )
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ callback ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
