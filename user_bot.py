@@ -222,6 +222,7 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
                 # Reset counter if we found pending requests
                 consecutive_empty_checks = 0
                 
+                batch_processed = 0
                 for request in pending_requests:
                     if not auto_accept_running.get(user_id, {}).get(chat_id, False):
                         break
@@ -236,6 +237,7 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
                         if req_user_id:
                             # Add to processed users set
                             processed_users.add(req_user_id)
+                            batch_processed += 1
                             
                             await user_app.approve_chat_join_request(chat_id, req_user_id)
                             accepted_count += 1
@@ -253,32 +255,10 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
                             except Exception as notify_error:
                                 print(f"⚠️ Could not send notification for {req_user_name}: {notify_error}")
                             
-                            # Send live update for every acceptance
-                            current_time = asyncio.get_event_loop().time()
-                            if current_time - last_update_time >= 3:  # Update every 3 seconds
-                                remaining = total_initial - accepted_count - failed_count - ignored_count
-                                progress_text = f"🔄 **Auto-accepting for {chat_title}...**\n\n"
-                                progress_text += f"📊 **Live Progress:**\n"
-                                progress_text += f"✅ Accepted: {accepted_count}\n"
-                                progress_text += f"❌ Failed: {failed_count}\n"
-                                progress_text += f"⏭️ Ignored: {ignored_count}\n"
-                                progress_text += f"⏳ Remaining: {remaining}\n\n"
-                                progress_text += f"👤 **Last Accepted:** {req_user_name}\n"
-                                progress_text += f"📈 **Progress:** {((accepted_count + failed_count + ignored_count) / total_initial * 100):.1f}%"
-                                
-                                if status_msg:
-                                    try:
-                                        await status_msg.edit_text(progress_text)
-                                    except:
-                                        status_msg = await bot_app.send_message(user_id, progress_text)
-                                else:
-                                    status_msg = await bot_app.send_message(user_id, progress_text)
-                                
-                                last_update_time = current_time
-                            
                             print(f"✅ Accepted: {req_user_name} (ID: {req_user_id})")
                         else:
                             failed_count += 1
+                            batch_processed += 1
                             print(f"❌ Failed to get user info from request")
                         
                         await asyncio.sleep(1)  # Small delay to avoid flood
@@ -294,6 +274,8 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
                         if req_user_id:
                             processed_users.add(req_user_id)
                         
+                        batch_processed += 1
+                        
                         # Handle specific errors gracefully
                         if "user_channels_too_much" in error_msg:
                             ignored_count += 1
@@ -308,7 +290,41 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
                             failed_count += 1
                             print(f"❌ Failed to accept request: {e}")
                 
-                await asyncio.sleep(2)  # Wait before next batch check
+                # Send live update after processing batch
+                current_time = asyncio.get_event_loop().time()
+                if current_time - last_update_time >= 3 and batch_processed > 0:  # Update every 3 seconds if we processed something
+                    remaining = total_initial - accepted_count - failed_count - ignored_count
+                    progress_text = f"🔄 **Auto-accepting for {chat_title}...**\n\n"
+                    progress_text += f"📊 **Live Progress:**\n"
+                    progress_text += f"✅ Accepted: {accepted_count}\n"
+                    progress_text += f"❌ Failed: {failed_count}\n"
+                    progress_text += f"⏭️ Ignored: {ignored_count}\n"
+                    progress_text += f"⏳ Remaining: {remaining}\n\n"
+                    
+                    if accepted_count > 0:
+                        progress_text += f"👤 **Last Accepted:** {accepted_users[-1]['name']}\n"
+                    elif ignored_count > 0:
+                        progress_text += f"⏭️ **Last Action:** Ignored user (too many channels/deleted account)\n"
+                    
+                    progress_text += f"📈 **Progress:** {((accepted_count + failed_count + ignored_count) / total_initial * 100):.1f}%"
+                    
+                    if status_msg:
+                        try:
+                            await status_msg.edit_text(progress_text)
+                        except:
+                            status_msg = await bot_app.send_message(user_id, progress_text)
+                    else:
+                        status_msg = await bot_app.send_message(user_id, progress_text)
+                    
+                    last_update_time = current_time
+                
+                # Check if we've processed all users
+                total_processed = accepted_count + failed_count + ignored_count
+                if total_processed >= total_initial:
+                    print(f"✅ All {total_initial} users have been processed. Breaking main loop.")
+                    break
+                
+                await asyncio.sleep(3)  # Wait before next batch check
                 
             except Exception as e:
                 print(f"Error in auto-accept loop: {e}")
