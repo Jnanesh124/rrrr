@@ -259,7 +259,6 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
 
                             # Send welcome message to accepted user
                             try:
-                                from bot import send_welcome_message
                                 # Create a simple user object for welcome message
                                 class SimpleUser:
                                     def __init__(self, user_id, name):
@@ -268,7 +267,12 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
                                         self.mention = f"[{name}](tg://user?id={user_id})"
                                 
                                 simple_user = SimpleUser(req_user_id, req_user_name)
+                                
+                                # Import and call welcome function with delay
+                                await asyncio.sleep(1)  # Small delay before sending welcome
+                                from bot import send_welcome_message
                                 await send_welcome_message(simple_user)
+                                
                             except Exception as welcome_error:
                                 print(f"⚠️ Could not send welcome message to {req_user_name}: {welcome_error}")
 

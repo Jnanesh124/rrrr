@@ -406,7 +406,8 @@ async def approve(_, m: Message):
         await app.approve_chat_join_request(op.id, kk.id)
         print(f"✅ Auto-approved join request from {kk.first_name or 'Unknown'} (ID: {kk.id}) in {op.title or 'Unknown'}")
         
-        # Send welcome message with image
+        # Send welcome message with image - add delay to ensure bot is ready
+        await asyncio.sleep(1)
         await send_welcome_message(kk)
         
         add_user(kk.id)
@@ -421,31 +422,53 @@ async def approve(_, m: Message):
         print(f"Chat: {op.title} (ID: {op.id})")
         print(f"User: {kk.first_name} (ID: {kk.id})")
 
+# Handle new members joining (after approval)
+@app.on_message(filters.new_chat_members)
+async def welcome_new_members(_, m: Message):
+    """Welcome new members who joined the chat"""
+    for new_member in m.new_chat_members:
+        if not new_member.is_bot:  # Don't welcome other bots
+            print(f"👋 New member joined: {new_member.first_name or 'Unknown'} (ID: {new_member.id})")
+            await asyncio.sleep(1)  # Small delay
+            await send_welcome_message(new_member)
+            add_user(new_member.id)
+
 async def send_welcome_message(user):
     """Send welcome message to approved user"""
     try:
+        # Ensure the bot client is ready
+        if not app.is_connected:
+            print(f"⚠️ Bot not connected, waiting...")
+            await asyncio.sleep(2)
+        
         img = random.choice(images)  # Choose a random image
+        
+        # Create user mention properly
+        user_mention = f"[{user.first_name or 'there'}](tg://user?id={user.id})"
+        
         await app.send_photo(
             user.id,  # Send to the user who requested to join
             img,  # The chosen image URL
-            caption="**Hello {}! Your request has been approved ✔️\n\nClick /start for more features\n\n©️@JNKBACKUP @JNK_BOTS**".format(
-                user.mention
-            )
+            caption=f"**Hello {user_mention}! Your request has been approved ✔️\n\nClick /start for more features\n\n©️@JNKBACKUP @JNK_BOTS**"
         )
         print(f"📸 Welcome photo sent to {user.first_name or 'Unknown'} (ID: {user.id})")
+        
     except errors.PeerIdInvalid:
-        print(f"User {user.id} hasn't started the bot, couldn't send welcome photo")
+        print(f"⚠️ User {user.id} hasn't started the bot, couldn't send welcome photo")
+    except errors.UserIsBlocked:
+        print(f"⚠️ User {user.id} has blocked the bot")
     except Exception as photo_err:
-        print(f"Error sending welcome photo: {photo_err}")
+        print(f"⚠️ Error sending welcome photo to {user.id}: {photo_err}")
         # Try sending text message instead
         try:
+            user_mention = f"[{user.first_name or 'there'}](tg://user?id={user.id})"
             await app.send_message(
                 user.id,
-                f"**Hello {user.first_name or 'there'}! Your request has been approved ✔️\n\nClick /start for more features\n\n©️@JNKBACKUP @JNK_BOTS**"
+                f"**Hello {user_mention}! Your request has been approved ✔️\n\nClick /start for more features\n\n©️@JNKBACKUP @JNK_BOTS**"
             )
             print(f"💬 Welcome text sent to {user.first_name or 'Unknown'} (ID: {user.id})")
         except Exception as text_err:
-            print(f"Could not send any welcome message to user {user.id}: {text_err}")
+            print(f"❌ Could not send any welcome message to user {user.id}: {text_err}")
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Start ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -618,9 +641,11 @@ if __name__ == "__main__":
     if start_user_bot():
         print("✅ User bot started successfully!")
         try:
+            print("🚀 Starting main bot...")
             app.run()  # Start main bot
         finally:
             stop_user_bot()  # Clean shutdown of user bot
     else:
         print("❌ Failed to start user bot!")
+        print("🚀 Starting main bot anyway...")
         app.run()  # Start main bot anyway
