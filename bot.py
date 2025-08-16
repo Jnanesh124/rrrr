@@ -4,6 +4,10 @@ from pyrogram.errors import UserNotParticipant
 from pyrogram.errors.exceptions.flood_420 import FloodWait
 from database import add_user, add_group, all_users, all_groups, users, remove_user
 from configs import cfg
+from user_bot import (user_app, user_states, pending_channels, auto_accept_running,
+                     UserState, extract_invite_link_info, check_admin_permissions,
+                     get_pending_requests, auto_accept_pending_requests,
+                     start_user_bot, stop_user_bot)
 import random, asyncio
 import os
 
@@ -20,6 +24,238 @@ images = [
     'https://storage.teleservices.io/Teleservice_bb48095f81f5.jpg',
     'https://storage.teleservices.io/Teleservice_16705d191b64.jpg'
 ]
+
+#━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Pending Accept Commands ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@app.on_message(filters.command("pendingaccept") & filters.private)
+async def pending_accept_start(_, m: Message):
+    user_id = m.from_user.id
+    add_user(user_id)
+    
+    user_states[user_id] = UserState.WAITING_FOR_LINK
+    
+    await m.reply_text(
+        "**🔗 Send Channel/Group Invite Link**\n\n"
+        "Please send the invite link of the channel or group where you want to auto-accept pending requests.\n\n"
+        "**Supported formats:**\n"
+        "• https://t.me/joinchat/xxxxxx\n"
+        "• https://t.me/+xxxxxx\n"
+        "• https://telegram.me/joinchat/xxxxxx\n\n"
+        "**Note:** Make sure the link is valid and not expired!"
+    )
+
+@app.on_message(filters.text & filters.private)
+async def handle_invite_link(_, m: Message):
+    user_id = m.from_user.id
+    
+    if user_states.get(user_id) != UserState.WAITING_FOR_LINK:
+        return
+    
+    invite_link = m.text.strip()
+    invite_hash = extract_invite_link_info(invite_link)
+    
+    if not invite_hash:
+        await m.reply_text(
+            "❌ **Invalid invite link!**\n\n"
+            "Please send a valid channel/group invite link.\n"
+            "Example: https://t.me/joinchat/xxxxxx"
+        )
+        return
+    
+    try:
+        # Try to join using user account
+        await m.reply_text("🔄 **Attempting to join the channel/group...**")
+        
+        try:
+            chat = await user_app.join_chat(invite_link)
+            chat_id = chat.id
+            chat_title = chat.title or "Unknown"
+            
+            pending_channels[user_id] = {
+                'chat_id': chat_id,
+                'chat_title': chat_title,
+                'invite_link': invite_link
+            }
+            
+            user_states[user_id] = UserState.WAITING_FOR_ADMIN_CONFIRMATION
+            
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ I've given admin permissions", callback_data="admin_done")]
+            ])
+            
+            await m.reply_text(
+                f"✅ **Successfully joined: {chat_title}**\n\n"
+                "🛡️ **Next Step:**\n"
+                "Please make me an admin in the channel/group with **'Invite Members'** permission.\n\n"
+                "After giving admin permissions, click the button below or use /admindone command.",
+                reply_markup=keyboard
+            )
+            
+        except errors.UserAlreadyParticipant:
+            # Already in the chat, get chat info
+            try:
+                chat = await user_app.get_chat(invite_hash)
+                chat_id = chat.id
+                chat_title = chat.title or "Unknown"
+                
+                pending_channels[user_id] = {
+                    'chat_id': chat_id,
+                    'chat_title': chat_title,
+                    'invite_link': invite_link
+                }
+                
+                user_states[user_id] = UserState.WAITING_FOR_ADMIN_CONFIRMATION
+                
+                keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("✅ I've given admin permissions", callback_data="admin_done")]
+                ])
+                
+                await m.reply_text(
+                    f"✅ **Already joined: {chat_title}**\n\n"
+                    "🛡️ **Next Step:**\n"
+                    "Please make me an admin in the channel/group with **'Invite Members'** permission.\n\n"
+                    "After giving admin permissions, click the button below or use /admindone command.",
+                    reply_markup=keyboard
+                )
+                
+            except Exception as e:
+                await m.reply_text(f"❌ **Error getting chat info:** {str(e)}")
+                user_states[user_id] = UserState.IDLE
+                
+    except errors.InviteHashExpired:
+        await m.reply_text("❌ **Invite link has expired!** Please get a new invite link.")
+        user_states[user_id] = UserState.IDLE
+    except Exception as e:
+        await m.reply_text(f"❌ **Failed to join:** {str(e)}\n\nPlease check the invite link and try again.")
+        user_states[user_id] = UserState.IDLE
+
+@app.on_message(filters.command("admindone") & filters.private)
+async def admin_done_command(_, m: Message):
+    await handle_admin_done(m.from_user.id, m)
+
+@app.on_callback_query(filters.regex("admin_done"))
+async def admin_done_callback(_, cb: CallbackQuery):
+    await handle_admin_done(cb.from_user.id, cb.message, cb)
+
+async def handle_admin_done(user_id, message, callback=None):
+    if user_states.get(user_id) != UserState.WAITING_FOR_ADMIN_CONFIRMATION:
+        text = "❌ **No pending channel setup found!**\n\nPlease use /pendingaccept first."
+        if callback:
+            await callback.answer(text, show_alert=True)
+        else:
+            await message.reply_text(text)
+        return
+    
+    if user_id not in pending_channels:
+        text = "❌ **Channel information not found!**"
+        if callback:
+            await callback.answer(text, show_alert=True)
+        else:
+            await message.reply_text(text)
+        return
+    
+    chat_info = pending_channels[user_id]
+    chat_id = chat_info['chat_id']
+    chat_title = chat_info['chat_title']
+    
+    # Check admin permissions
+    try:
+        me = await user_app.get_me()
+        has_permission = await check_admin_permissions(chat_id, me.id)
+        
+        if not has_permission:
+            text = "❌ **Missing admin permissions!**\n\nPlease make sure I have admin privileges with 'Invite Members' permission."
+            if callback:
+                await callback.answer(text, show_alert=True)
+            else:
+                await message.reply_text(text)
+            return
+        
+        # Get initial pending requests count
+        pending_requests = await get_pending_requests(chat_id)
+        pending_count = len(pending_requests)
+        
+        user_states[user_id] = UserState.AUTO_ACCEPTING
+        
+        if user_id not in auto_accept_running:
+            auto_accept_running[user_id] = {}
+        auto_accept_running[user_id][chat_id] = True
+        
+        success_text = f"✅ **Setup Complete!**\n\n" \
+                      f"🏠 **Channel:** {chat_title}\n" \
+                      f"👥 **Pending Requests:** {pending_count}\n\n" \
+                      f"🚀 **Starting auto-accept process...**\n\n" \
+                      f"Use /stopaccept to stop the process anytime."
+        
+        if callback:
+            await callback.answer("✅ Setup complete! Starting auto-accept...", show_alert=False)
+            await message.edit_text(success_text)
+        else:
+            await message.reply_text(success_text)
+        
+        # Start auto-accepting in background
+        asyncio.create_task(auto_accept_pending_requests(app, user_id, chat_id, chat_title))
+        
+    except Exception as e:
+        error_text = f"❌ **Error checking permissions:** {str(e)}"
+        if callback:
+            await callback.answer(error_text, show_alert=True)
+        else:
+            await message.reply_text(error_text)
+
+@app.on_message(filters.command("stopaccept") & filters.private)
+async def stop_accept(_, m: Message):
+    user_id = m.from_user.id
+    
+    if user_id not in auto_accept_running or not any(auto_accept_running[user_id].values()):
+        await m.reply_text("❌ **No active auto-accept process found!**")
+        return
+    
+    # Stop all auto-accept processes for this user
+    for chat_id in auto_accept_running[user_id]:
+        auto_accept_running[user_id][chat_id] = False
+    
+    user_states[user_id] = UserState.IDLE
+    
+    await m.reply_text("✅ **Auto-accept process stopped successfully!**")
+
+@app.on_message(filters.command("stats") & filters.private)
+async def show_stats(_, m: Message):
+    user_id = m.from_user.id
+    
+    if user_id not in pending_channels:
+        await m.reply_text("❌ **No channel setup found!**\n\nUse /pendingaccept to setup a channel first.")
+        return
+    
+    chat_info = pending_channels[user_id]
+    chat_id = chat_info['chat_id']
+    chat_title = chat_info['chat_title']
+    
+    try:
+        pending_requests = await get_pending_requests(chat_id)
+        pending_count = len(pending_requests)
+        
+        is_running = auto_accept_running.get(user_id, {}).get(chat_id, False)
+        status = "🟢 Active" if is_running else "🔴 Stopped"
+        
+        stats_text = f"📊 **Channel Statistics**\n\n" \
+                     f"🏠 **Channel:** {chat_title}\n" \
+                     f"👥 **Pending Requests:** {pending_count}\n" \
+                     f"⚡ **Status:** {status}\n\n"
+        
+        if pending_requests and len(pending_requests) > 0:
+            stats_text += "**👥 Recent Pending Users:**\n"
+            for i, request in enumerate(pending_requests[:5]):  # Show first 5
+                user_name = request.from_user.first_name or "Unknown"
+                stats_text += f"{i+1}. {user_name}\n"
+            
+            if len(pending_requests) > 5:
+                stats_text += f"... and {len(pending_requests) - 5} more"
+        
+        await m.reply_text(stats_text)
+        
+    except Exception as e:
+        await m.reply_text(f"❌ **Error getting statistics:** {str(e)}")
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Main process ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -52,7 +288,33 @@ async def op(_, m :Message):
         await app.get_chat_member(cfg.CHID, m.from_user.id) 
         if m.chat.type == enums.ChatType.PRIVATE:    
             add_user(m.from_user.id)
-            await m.reply_text("**<strong>I'm an auto-approve [Admin Join Requests]({}) Bot. I can approve users in Groups/Channels. Add me to your chat and promote me to admin with add members permission. Join here for\n\nMAIN CHANNEL: @JNKBACKUP\n🎞 BOT UPDATE CHANNEL: @JNK_BOTS</strong>**",disable_web_page_preview=False)
+            user_states[m.from_user.id] = UserState.IDLE
+            
+            welcome_text = """**🎉 Welcome to Auto-Approve Bot!**
+
+🤖 **Bot Features:**
+✅ Auto-approve join requests
+✅ Auto-accept pending requests with user account
+✅ Live statistics and logs
+
+**📋 Available Commands:**
+/start - Show this welcome message
+/pendingaccept - Start auto-pending request acceptance
+/admindone - Confirm admin permissions and start auto-accept
+/stopaccept - Stop auto-acceptance process
+/stats - Show pending requests statistics
+
+**🔗 Channels:**
+📢 MAIN CHANNEL: @JNKBACKUP
+🤖 BOT UPDATE CHANNEL: @JNK_BOTS
+
+**🚀 To get started with pending request acceptance:**
+1. Click /pendingaccept
+2. Send your channel/group invite link
+3. Click /admindone after giving admin permissions
+4. Watch the magic happen! ✨"""
+            
+            await m.reply_text(welcome_text, disable_web_page_preview=False)
             
         elif m.chat.type == enums.ChatType.GROUP or enums.ChatType.SUPERGROUP:
             keyboar = InlineKeyboardMarkup(
@@ -178,4 +440,13 @@ async def fcast(_, m: Message):
 
 
 if __name__ == "__main__":
-    app.run()  # This should only be here if you're running locally
+    # Start user bot first
+    if start_user_bot():
+        print("✅ User bot started successfully!")
+        try:
+            app.run()  # Start main bot
+        finally:
+            stop_user_bot()  # Clean shutdown of user bot
+    else:
+        print("❌ Failed to start user bot!")
+        app.run()  # Start main bot anyway
