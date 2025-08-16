@@ -166,6 +166,7 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
         failed_count = 0
         ignored_count = 0
         accepted_users = []  # Store accepted users for notification
+        processed_users = set()  # Track processed user IDs to avoid duplicates
         
         # First, fetch and display all pending requests
         initial_msg = await bot_app.send_message(user_id, f"🔍 **Fetching pending requests for {chat_title}...**")
@@ -175,6 +176,15 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
         
         if total_initial == 0:
             await initial_msg.edit_text(f"📋 **No pending requests found for {chat_title}**\n\n✅ All users are already approved!")
+            # Auto-leave even if no requests found
+            try:
+                await user_app.send_message(chat_id, "📋 **No pending requests found. Leaving the channel now.**")
+                await asyncio.sleep(2)
+                await user_app.leave_chat(chat_id)
+                await bot_app.send_message(user_id, f"🚪 **User account has left {chat_title} (no pending requests found)**")
+            except Exception as leave_error:
+                print(f"Error leaving chat after no requests: {leave_error}")
+                await bot_app.send_message(user_id, f"⚠️ **Could not leave {chat_title} automatically**")
             return
         
         # Show initial pending requests list
@@ -219,7 +229,14 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
                     try:
                         req_user_id, req_user_name = await get_user_info_from_request(request)
                         
+                        # Skip if we already processed this user
+                        if req_user_id and req_user_id in processed_users:
+                            continue
+                        
                         if req_user_id:
+                            # Add to processed users set
+                            processed_users.add(req_user_id)
+                            
                             await user_app.approve_chat_join_request(chat_id, req_user_id)
                             accepted_count += 1
                             accepted_users.append({"id": req_user_id, "name": req_user_name})
@@ -273,6 +290,10 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
                         error_msg = str(e).lower()
                         req_user_id, req_user_name = await get_user_info_from_request(request)
                         
+                        # Add to processed users even if failed to avoid re-processing
+                        if req_user_id:
+                            processed_users.add(req_user_id)
+                        
                         # Handle specific errors gracefully
                         if "user_channels_too_much" in error_msg:
                             ignored_count += 1
@@ -313,7 +334,7 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
                     summary_msg += f"... and {len(accepted_users) - 10} more!\n"
                 summary_msg += "\n"
             
-            summary_msg += "🚪 **I'm leaving now.** If you need to process requests again, " \
+            summary_msg += "🚪 **User account is leaving now.** If you need to process requests again, " \
                           "use `/pendingaccept` command and send the invite link to rejoin.\n\n" \
                           "**Thank you for using Auto-Approve Bot!** 🤖"
             
@@ -322,6 +343,7 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
             
             # Leave the chat
             await user_app.leave_chat(chat_id)
+            print(f"🚪 User account left chat: {chat_title} (ID: {chat_id})")
             
             # Notify the bot user about successful completion and leaving
             final_text = f"✅ **Auto-accept completed for {chat_title}!**\n\n" \
@@ -329,11 +351,11 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
                         f"✅ Total Accepted: {accepted_count}\n" \
                         f"❌ Total Failed: {failed_count}\n" \
                         f"⏭️ Total Ignored: {ignored_count}\n\n" \
-                        f"🚪 **User account has left the channel.**\n\n" \
+                        f"🚪 **User account has successfully left the channel.**\n\n" \
                         f"💡 **To process requests again:** Use `/pendingaccept` and send the invite link to rejoin."
             
         except Exception as leave_error:
-            print(f"Error leaving chat: {leave_error}")
+            print(f"❌ Error leaving chat {chat_title}: {leave_error}")
             # If leaving fails, still show completion message
             final_text = f"✅ **Auto-accept completed for {chat_title}!**\n\n" \
                         f"📊 **Final Statistics:**\n" \
@@ -343,12 +365,26 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
                         f"⚠️ **Note:** Could not leave the channel automatically. You may leave manually if needed."
                 
     except Exception as e:
+        print(f"❌ Error in auto-accept process for {chat_title}: {e}")
         await bot_app.send_message(user_id, f"❌ **Error in auto-accept process:** {str(e)}")
+        
+        # Try to leave the chat even if there was an error
+        try:
+            await user_app.send_message(chat_id, "❌ **Process ended with error. User account is leaving now.**")
+            await asyncio.sleep(2)
+            await user_app.leave_chat(chat_id)
+            print(f"🚪 User account left chat after error: {chat_title} (ID: {chat_id})")
+            leave_status = "🚪 **User account has left the channel.**"
+        except Exception as leave_error:
+            print(f"❌ Could not leave chat after error: {leave_error}")
+            leave_status = "⚠️ **Could not leave the channel automatically.**"
+        
         final_text = f"❌ **Process ended with error for {chat_title}**\n\n" \
                     f"📊 **Statistics:**\n" \
                     f"✅ Accepted: {accepted_count}\n" \
                     f"❌ Failed: {failed_count}\n" \
-                    f"⏭️ Ignored: {ignored_count}"
+                    f"⏭️ Ignored: {ignored_count}\n\n" \
+                    f"{leave_status}"
     
     # Send final status
     try:
