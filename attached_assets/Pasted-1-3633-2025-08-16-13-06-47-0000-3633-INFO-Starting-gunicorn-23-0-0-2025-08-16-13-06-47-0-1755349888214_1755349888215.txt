@@ -1,0 +1,149 @@
+1] 3633
+[2025-08-16 13:06:47 +0000] [3633] [INFO] Starting gunicorn 23.0.0
+[2025-08-16 13:06:47 +0000] [3633] [INFO] Listening at: http://127.0.0.1:8000 (3633)
+[2025-08-16 13:06:47 +0000] [3633] [INFO] Using worker: sync
+User bot started successfully!643] [INFO] Booting worker with pid: 3643
+✅ User bot started successfully!
+✅ Accepted: Guru (ID: 1362947049)
+✅ Accepted: Pravin (ID: 921736834)
+✅ Accepted: Tribal Chief_ (ID: 5853472657)
+✅ Accepted: Machan (ID: 7148306744)
+✅ Accepted: Jason (ID: 6458503880)
+✅ Accepted: Abdul (ID: 5086885083)
+✅ Accepted: Glitch (ID: 7899765543)
+✅ Accepted: Mj (ID: 5044063238)
+✅ Accepted: Chishiya (ID: 7672829664)
+✅ Accepted: Kakashi (ID: 6174400277)
+✅ Accepted: Saran (ID: 1474511044)
+✅ Accepted: 42732 (ID: 7907539087)
+✅ Accepted: A (ID: 6234136080)
+✅ Accepted: Ajay (ID: 6203801641)
+✅ Accepted: Suthan (ID: 1124328708)
+✅ Accepted: Thor (ID: 786716377)
+✅ Accepted: Ambadii (ID: 8033431838)
+✅ Accepted: MR (ID: 1111926887)
+✅ Accepted: Munna (ID: 5042981509)
+✅ Accepted: Mr.raj (ID: 612573134)
+✅ Accepted: Sandeep (ID: 8081075259)
+✅ Accepted: No (ID: 5574468361)
+✅ Accepted: Guddu (ID: 1213891386)
+✅ Accepted: Akshay (ID: 1594973809)
+✅ Accepted: Nandan (ID: 5663433899)
+✅ Accepted: BharathRaj (ID: 5162987197)
+✅ Accepted: Amit (ID: 5439076514)
+✅ Accepted: Ds (ID: 8032014727)
+✅ Accepted: RAVI (ID: 6356397683)
+✅ Accepted: Gada (ID: 7246456636)
+✅ Accepted: (-_-) ᴋᴀʀɴᴀɴ (-_-) (ID: 874073632)
+✅ Accepted: Md Tajbir Hossan Jibon (ID: 8094711408)
+✅ Accepted: J.K (ID: 1629455075)
+✅ Accepted: Nk (ID: 5215943928)
+✅ Accepted: Sodooo (ID: 5951898160)
+✅ Accepted: Md Adeen🐾 (ID: 5944440122)
+✅ Accepted: Iam (ID: 6800719453)
+✅ Accepted: Isararahamed (ID: 1445219137)
+✅ Accepted: Dileep (ID: 839678205)
+✅ Accepted: Haaaaa (ID: 6761770101)
+✅ Accepted: Jaya (ID: 6343110059)
+✅ Accepted: Ssss (ID: 6064890915)
+✅ Accepted: Pratheep (ID: 2058863903)
+✅ Accepted: Anju (ID: 8120620860)
+✅ Accepted: Ro (ID: 1821756129)
+✅ Accepted: Chandan (ID: 5945563474)
+✅ Accepted: Biswo (ID: 8125510254)
+✅ Accepted: K (ID: 5453241159)
+✅ Accepted: Raju (ID: 716406822)
+✅ Accepted: ❤️❤️❤️ (ID: 7897411520)
+✅ Accepted: Suhas (ID: 7209682769)
+✅ Accepted: 🧠🧠🧠 (ID: 7099481033)
+✅ Accepted: Osama Bin (ID: 5126813098)
+✅ Accepted: Kumar (ID: 7287734082)
+✅ Accepted: SHG GYM (ID: 6940350918)
+✅ Accepted: Jahfar (ID: 7592680758)
+✅ Accepted: GIRISH (ID: 1297543467)
+✅ Accepted: Vansh 😎 (ID: 7193272962)
+✅ Accepted: Muhammed 🐈‍⬛🐾 (ID: 7129858658)
+✅ Accepted: Ajoy (ID: 7071799550)
+✅ Accepted: Kushal Trivedi (ID: 6614052143)
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+✅ Accepted: Mubarak Ahamed (ID: 7295173757)
+✅ Accepted: Ubed (ID: 6095958191)
+✅ Accepted: Milan (ID: 6684962224)
+✅ Accepted: Stu (ID: 7016163553)
+✅ Accepted: Ajit Chaudhari (ID: 5713259050)
+✅ Accepted: Sk (ID: 8384164343)
+✅ Accepted: King (ID: 6096748772)
+✅ Accepted: Monster (ID: 6808654836)
+✅ Accepted: Akash (ID: 5452455769)
+✅ Accepted: Lucifer (ID: 1936223175)
+✅ Accepted: Jitesh (ID: 5680136837)
+✅ Accepted: Faizee (ID: 7540967069)
+✅ Accepted: Vikas (ID: 6842953627)
+✅ Accepted: P (ID: 1469105172)
+✅ Accepted: Majeed (ID: 5972405814)
+✅ Accepted: 🧭 (ID: 1630414867)
+✅ Accepted: Fayumax (ID: 7035812593)
+✅ Accepted: Rajesh (ID: 6154062788)
+✅ Accepted: कृष्ण (ID: 1685033909)
+✅ Accepted: jithin (ID: 835625956)
+✅ Accepted: Sunni (ID: 6482300627)
+✅ Accepted: Md (ID: 6804308029)
+✅ Accepted: Soumyadip (ID: 1414951729)
+✅ Accepted: Sameer (ID: 5984349280)
+✅ Accepted: You don't wanna know (ID: 1948733233)
+✅ Accepted: Samhith (ID: 5512852253)
+✅ Accepted: Veer (ID: 6925273062)
+✅ Accepted: Rajesh (ID: 6964628283)
+✅ Accepted: Sharad (ID: 808486818)
+✅ Accepted: Sagar (ID: 6479664148)
+✅ Accepted: Deep (ID: 1571355954)
+✅ Accepted: Bablu (ID: 6260417818)
+✅ Accepted: Akilan (ID: 1223395029)
+✅ Accepted: Vetri (ID: 1171616717)
+✅ Accepted: T-Ut-Tu (ID: 636708197)
+✅ Accepted: Anand (ID: 7911712374)
+✅ Accepted: Neeraj (ID: 5808847897)
+✅ Accepted: Ra (ID: 1163210638)
+✅ Accepted: Avinash (ID: 1139117176)
+✅ Accepted: Appu (ID: 6895334995)
+✅ Accepted: H S Sankanagoudra (ID: 5340955158)
+✅ Accepted: Nikk (ID: 5276751867)
+✅ Accepted: જય મેલડી માં (ID: 5084126735)
+✅ Accepted: M (ID: 5343913013)
+✅ Accepted: Orian (ID: 6045609009)
+✅ Accepted: Zim (ID: 1178035136)
+✅ Accepted: Chandru (ID: 5281461321)
+✅ Accepted: Binson (ID: 1647967046)
+✅ Accepted: Antony (ID: 772529353)
+✅ Accepted: Darshan (ID: 682418688)
+✅ Accepted: Nmb (ID: 640627153)
+✅ Accepted: Paramjeet (ID: 5734458032)
+✅ Accepted: Do (ID: 6601031470)
+✅ Accepted: Midhuu😈☠️ (ID: 1869335916)
+✅ Accepted: Mr.. (ID: 5627809475)
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thinks: One of the users you tried to add is already in too many channels/supergroups
+❌ Failed to accept request: Telegram says: [403 USER_CHANNELS_TOO_MUCH] (caused by "messages.HideChatJoinRequest") Pyrogram 2.3.43 thi
