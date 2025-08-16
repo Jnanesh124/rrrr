@@ -59,21 +59,34 @@ async def check_admin_permissions(chat_id, user_id):
         if member.status == "administrator":
             # If privileges object exists, check can_invite_users
             if hasattr(member, 'privileges') and member.privileges:
-                # Check if can_invite_users is True or None (None means all permissions)
-                if member.privileges.can_invite_users is True or member.privileges.can_invite_users is None:
+                # Check if can_invite_users is explicitly True
+                if member.privileges.can_invite_users is True:
                     return True
-                # Also check if they have all admin rights
-                if hasattr(member.privileges, 'is_anonymous') and member.privileges.is_anonymous is False:
-                    # Check if most admin privileges are True (indicating full admin)
-                    admin_perms = [
-                        getattr(member.privileges, 'can_delete_messages', False),
-                        getattr(member.privileges, 'can_manage_chat', False),
-                        getattr(member.privileges, 'can_restrict_members', False)
+                    
+                # If can_invite_users is None, check if user has general admin permissions
+                # None typically means "all permissions" in Telegram
+                if member.privileges.can_invite_users is None:
+                    # Check if they have other admin permissions that indicate full admin access
+                    admin_checks = [
+                        getattr(member.privileges, 'can_manage_chat', None),
+                        getattr(member.privileges, 'can_delete_messages', None),
+                        getattr(member.privileges, 'can_restrict_members', None),
+                        getattr(member.privileges, 'can_promote_members', None)
                     ]
-                    if sum(admin_perms) >= 2:  # If they have most admin perms, likely can invite
+                    
+                    # If most permissions are None (indicating full access) or True, allow
+                    none_count = sum(1 for perm in admin_checks if perm is None)
+                    true_count = sum(1 for perm in admin_checks if perm is True)
+                    
+                    if none_count >= 2 or true_count >= 2:
                         return True
+                        
+                # For administrators without invite permission explicitly set to False
+                if member.privileges.can_invite_users is not False:
+                    return True
+                    
             else:
-                # If no privileges object, assume they have invite permission
+                # If no privileges object exists, assume full admin permissions
                 return True
                 
         return False
