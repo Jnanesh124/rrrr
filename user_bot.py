@@ -243,17 +243,7 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
                             accepted_count += 1
                             accepted_users.append({"id": req_user_id, "name": req_user_name})
                             
-                            # Send notification to the user account in the channel
-                            try:
-                                await user_app.send_message(
-                                    chat_id,
-                                    f"✅ **Your request has been accepted!**\n\n"
-                                    f"👤 **User:** {req_user_name}\n"
-                                    f"🏠 **Channel:** {chat_title}\n\n"
-                                    f"Welcome to the channel! 🎉"
-                                )
-                            except Exception as notify_error:
-                                print(f"⚠️ Could not send notification for {req_user_name}: {notify_error}")
+                            # Individual notifications removed - all updates will be shown in bot PM
                             
                             print(f"✅ Accepted: {req_user_name} (ID: {req_user_id})")
                         else:
@@ -332,30 +322,8 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
         
         # Auto-leave the channel/group after completing all requests
         try:
-            # Send final summary to the channel
-            summary_msg = f"✅ **All pending requests have been processed!**\n\n" \
-                         f"📋 **Final Summary:**\n" \
-                         f"✅ Accepted: {accepted_count}\n" \
-                         f"❌ Failed: {failed_count}\n" \
-                         f"⏭️ Ignored: {ignored_count}\n\n"
-            
-            if accepted_users:
-                summary_msg += f"🎉 **Welcome to all {len(accepted_users)} new members!**\n\n"
-                if len(accepted_users) <= 10:
-                    for user in accepted_users:
-                        summary_msg += f"👋 {user['name']}\n"
-                else:
-                    for user in accepted_users[:10]:
-                        summary_msg += f"👋 {user['name']}\n"
-                    summary_msg += f"... and {len(accepted_users) - 10} more!\n"
-                summary_msg += "\n"
-            
-            summary_msg += "🚪 **User account is leaving now.** If you need to process requests again, " \
-                          "use `/pendingaccept` command and send the invite link to rejoin.\n\n" \
-                          "**Thank you for using Auto-Approve Bot!** 🤖"
-            
-            await user_app.send_message(chat_id, summary_msg)
-            await asyncio.sleep(2)  # Wait a moment before leaving
+            # Don't send messages to the channel, just leave directly
+            await asyncio.sleep(1)  # Brief pause before leaving
             
             # Leave the chat
             await user_app.leave_chat(chat_id)
@@ -366,9 +334,21 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
                         f"📊 **Final Statistics:**\n" \
                         f"✅ Total Accepted: {accepted_count}\n" \
                         f"❌ Total Failed: {failed_count}\n" \
-                        f"⏭️ Total Ignored: {ignored_count}\n\n" \
-                        f"🚪 **User account has successfully left the channel.**\n\n" \
-                        f"💡 **To process requests again:** Use `/pendingaccept` and send the invite link to rejoin."
+                        f"⏭️ Total Ignored: {ignored_count}\n\n"
+            
+            if accepted_users:
+                final_text += f"🎉 **Newly Accepted Members:**\n"
+                if len(accepted_users) <= 10:
+                    for user in accepted_users:
+                        final_text += f"👋 {user['name']}\n"
+                else:
+                    for user in accepted_users[:10]:
+                        final_text += f"👋 {user['name']}\n"
+                    final_text += f"... and {len(accepted_users) - 10} more!\n"
+                final_text += "\n"
+            
+            final_text += f"🚪 **User account has successfully left the channel.**\n\n" \
+                         f"💡 **To process requests again:** Use `/pendingaccept` and send the invite link to rejoin."
             
         except Exception as leave_error:
             print(f"❌ Error leaving chat {chat_title}: {leave_error}")
@@ -384,10 +364,8 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
         print(f"❌ Error in auto-accept process for {chat_title}: {e}")
         await bot_app.send_message(user_id, f"❌ **Error in auto-accept process:** {str(e)}")
         
-        # Try to leave the chat even if there was an error
+        # Try to leave the chat even if there was an error (without sending message to channel)
         try:
-            await user_app.send_message(chat_id, "❌ **Process ended with error. User account is leaving now.**")
-            await asyncio.sleep(2)
             await user_app.leave_chat(chat_id)
             print(f"🚪 User account left chat after error: {chat_title} (ID: {chat_id})")
             leave_status = "🚪 **User account has left the channel.**"
