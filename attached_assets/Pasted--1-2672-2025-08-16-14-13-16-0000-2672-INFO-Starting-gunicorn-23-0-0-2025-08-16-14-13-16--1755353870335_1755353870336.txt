@@ -1,0 +1,53 @@
+[1] 2672
+[2025-08-16 14:13:16 +0000] [2672] [INFO] Starting gunicorn 23.0.0
+[2025-08-16 14:13:16 +0000] [2672] [INFO] Listening at: http://127.0.0.1:8000 (2672)
+[2025-08-16 14:13:16 +0000] [2672] [INFO] Using worker: sync
+User bot started successfully!682] [INFO] Booting worker with pid: 2682
+✅ User bot started successfully!
+🚀 Starting main bot...
+🔄 Bot connection established for welcome message
+📸 Welcome photo sent to Nee (ID: 7705525680)
+✅ Accepted: Nee (ID: 7705525680)
+✅ All 1 users have been processed. Breaking main loop.
+🚪 User account left chat: Ads (ID: -1002617033032)
+📸 Welcome photo sent to Nee (ID: 7705525680)
+✅ Accepted: Nee (ID: 7705525680)
+⚠️ User 7986872869 hasn't started the bot or blocked it. Will get welcome when they /start.
+✅ User 7986872869 added to database for future welcome
+✅ Accepted: Umii (ID: 7986872869)
+✅ All 2 users have been processed. Breaking main loop.
+🚪 User account left chat: Ads (ID: -1002617033032)
+Task exception was never retrieved
+future: <Task finished name='Task-316' coro=<auto_accept_pending_requests() done, defined at /home/runner/workspace/user_bot.py:161> exception=OperationalError('database is locked')>
+Traceback (most recent call last):
+  File "/home/runner/workspace/user_bot.py", line 425, in auto_accept_pending_requests
+    await status_msg.edit_text(final_text)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pyrogram/types/messages_and_media/message.py", line 4211, in edit_text
+    return await self._client.edit_message_text(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pyrogram/methods/messages/edit_message_text.py", line 109, in edit_message_text
+    r = await self.invoke(rpc)
+        ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pyrogram/methods/advanced/invoke.py", line 87, in invoke
+    await self.fetch_peers(getattr(r, "users", []))
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pyrogram/client.py", line 608, in fetch_peers
+    await self.storage.update_usernames(usernames)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pyrogram/storage/sqlite_storage.py", line 166, in update_usernames
+    self.conn.executescript(UNAME_SCHEMA)
+sqlite3.OperationalError: database is locked
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/runner/workspace/user_bot.py", line 429, in auto_accept_pending_requests
+    await bot_app.send_message(user_id, final_text)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pyrogram/methods/messages/send_message.py", line 200, in send_message
+    r = await self.invoke(rpc)
+        ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pyrogram/methods/advanced/invoke.py", line 87, in invoke
+    await self.fetch_peers(getattr(r, "users", []))
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pyrogram/client.py", line 608, in fetch_peers
+    await self.storage.update_usernames(usernames)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pyrogram/storage/sqlite_storage.py", line 166, in update_usernames
+    self.conn.executescript(UNAME_SCHEMA)
+sqlite3.OperationalError: database is locked
