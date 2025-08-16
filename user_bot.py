@@ -51,45 +51,62 @@ async def check_admin_permissions(chat_id, user_id):
     try:
         member = await user_app.get_chat_member(chat_id, user_id)
         
+        # Check different status types
+        status_str = str(member.status).lower()
+        
         # If user is creator, they have all permissions
-        if member.status == "creator":
+        if "creator" in status_str or member.status == "creator":
             return True
             
         # If user is administrator, check their privileges
-        if member.status == "administrator":
-            # If privileges object exists, check can_invite_users
-            if hasattr(member, 'privileges') and member.privileges:
-                # Check if can_invite_users is explicitly True
-                if member.privileges.can_invite_users is True:
-                    return True
+        if "administrator" in status_str or member.status == "administrator":
+            
+            # Try different approaches to check privileges
+            try:
+                # Method 1: Check if privileges object exists and has can_invite_users
+                if hasattr(member, 'privileges') and member.privileges is not None:
+                    can_invite = getattr(member.privileges, 'can_invite_users', None)
                     
-                # If can_invite_users is None, check if user has general admin permissions
-                # None typically means "all permissions" in Telegram
-                if member.privileges.can_invite_users is None:
-                    # Check if they have other admin permissions that indicate full admin access
-                    admin_checks = [
-                        getattr(member.privileges, 'can_manage_chat', None),
-                        getattr(member.privileges, 'can_delete_messages', None),
-                        getattr(member.privileges, 'can_restrict_members', None),
-                        getattr(member.privileges, 'can_promote_members', None)
-                    ]
-                    
-                    # If most permissions are None (indicating full access) or True, allow
-                    none_count = sum(1 for perm in admin_checks if perm is None)
-                    true_count = sum(1 for perm in admin_checks if perm is True)
-                    
-                    if none_count >= 2 or true_count >= 2:
+                    # If can_invite_users is explicitly True
+                    if can_invite is True:
                         return True
+                    
+                    # If can_invite_users is None, it often means all permissions
+                    if can_invite is None:
+                        # Check if user has other admin permissions
+                        other_perms = [
+                            getattr(member.privileges, 'can_manage_chat', None),
+                            getattr(member.privileges, 'can_delete_messages', None),
+                            getattr(member.privileges, 'can_restrict_members', None),
+                            getattr(member.privileges, 'can_promote_members', None),
+                            getattr(member.privileges, 'can_change_info', None)
+                        ]
                         
-                # For administrators without invite permission explicitly set to False
-                if member.privileges.can_invite_users is not False:
+                        # Count permissions that are True or None (indicating allowed)
+                        allowed_perms = sum(1 for perm in other_perms if perm in [True, None])
+                        
+                        # If user has multiple admin permissions, likely has invite permission too
+                        if allowed_perms >= 2:
+                            return True
+                    
+                    # Only return False if can_invite_users is explicitly False
+                    if can_invite is False:
+                        return False
+                    
+                    # If we reach here and user is admin, allow it
                     return True
                     
-            else:
-                # If no privileges object exists, assume full admin permissions
+                else:
+                    # No privileges object means likely full admin access
+                    return True
+                    
+            except Exception as privilege_error:
+                print(f"Error checking privileges: {privilege_error}")
+                # If there's an error checking privileges but user is admin, allow it
                 return True
                 
         return False
+        
     except Exception as e:
         print(f"Error checking admin permissions: {e}")
         return False
