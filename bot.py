@@ -202,11 +202,16 @@ async def handle_admin_done(user_id, message, callback=None):
                        f"**Required:** Admin with 'Invite Members' permission\n\n" \
                        f"**Solution:** Please ensure you've given me admin rights with the 'Add Members' or 'Invite Users' permission enabled."
 
+            # Add Try Again button
+            retry_keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔄 Try Again", callback_data="admin_done")]
+            ])
+
             if callback:
                 await callback.answer("❌ Admin permission check failed!", show_alert=True)
-                await message.edit_text(error_text)
+                await message.edit_text(error_text, reply_markup=retry_keyboard)
             else:
-                await message.reply_text(error_text)
+                await message.reply_text(error_text, reply_markup=retry_keyboard)
             return
 
         # If we reach here, permissions are good
@@ -279,13 +284,47 @@ async def stop_accept(_, m: Message):
         await m.reply_text("❌ **No active auto-accept process found!**")
         return
 
-    # Stop all auto-accept processes for this user
+    # Stop all auto-accept processes for this user and clean up
     for chat_id in auto_accept_running[user_id]:
         auto_accept_running[user_id][chat_id] = False
 
+    # Comprehensive cleanup
+    if user_id in auto_accept_running:
+        del auto_accept_running[user_id]
+    if user_id in pending_channels:
+        del pending_channels[user_id]
+    
     user_states[user_id] = UserState.IDLE
 
-    await m.reply_text("✅ **Auto-accept process stopped successfully!**")
+    await m.reply_text("✅ **Auto-accept process stopped successfully!**\n\n📝 **Session cleared** - You can start fresh with /pendingaccept")
+
+@app.on_message(filters.command("cleanup") & filters.private)
+async def force_cleanup(_, m: Message):
+    """Force cleanup user session if stuck"""
+    user_id = m.from_user.id
+    
+    # Force cleanup all user data
+    cleanup_count = 0
+    
+    if user_id in auto_accept_running:
+        for chat_id in auto_accept_running[user_id]:
+            auto_accept_running[user_id][chat_id] = False
+        del auto_accept_running[user_id]
+        cleanup_count += 1
+    
+    if user_id in pending_channels:
+        del pending_channels[user_id]
+        cleanup_count += 1
+    
+    user_states[user_id] = UserState.IDLE
+    cleanup_count += 1
+    
+    await m.reply_text(
+        f"🧹 **Force Cleanup Complete!**\n\n"
+        f"✅ Cleaned {cleanup_count} session items\n"
+        f"🔄 You can now start fresh with /pendingaccept\n\n"
+        f"💡 Use this command if the bot seems stuck or unresponsive."
+    )
 
 @app.on_message(filters.command("stats") & filters.private)
 async def show_stats(_, m: Message):
@@ -337,20 +376,45 @@ async def approve(_, m: Message):
     kk = m.from_user
     try:
         add_group(m.chat.id)
+        
+        # Auto-approve the join request
         await app.approve_chat_join_request(op.id, kk.id)
-        img = random.choice(images)  # Choose a random image
-        await app.send_photo(
-            kk.id,  # Send to the user who requested to join
-            img,  # The chosen image URL
-            caption="**Hello {}  your request has been approved ✔️ \n\nClick /start \n\n©️@JNKBACKUP @JNK_BOTS**".format(
-                m.from_user.mention
+        print(f"✅ Auto-approved join request from {kk.first_name or 'Unknown'} (ID: {kk.id}) in {op.title or 'Unknown'}")
+        
+        # Send welcome message with image
+        try:
+            img = random.choice(images)  # Choose a random image
+            await app.send_photo(
+                kk.id,  # Send to the user who requested to join
+                img,  # The chosen image URL
+                caption="**Hello {}! Your request has been approved ✔️\n\nClick /start for more features\n\n©️@JNKBACKUP @JNK_BOTS**".format(
+                    m.from_user.mention
+                )
             )
-        )
+        except errors.PeerIdInvalid:
+            print(f"User {kk.id} hasn't started the bot, couldn't send welcome message")
+        except Exception as photo_err:
+            print(f"Error sending welcome photo: {photo_err}")
+            # Try sending text message instead
+            try:
+                await app.send_message(
+                    kk.id,
+                    f"**Hello {kk.first_name or 'there'}! Your request has been approved ✔️\n\nClick /start for more features\n\n©️@JNKBACKUP @JNK_BOTS**"
+                )
+            except:
+                print(f"Could not send any message to user {kk.id}")
+        
         add_user(kk.id)
+        
+    except errors.ChatAdminRequired:
+        print(f"❌ Bot needs admin permissions to approve requests in {op.title}")
     except errors.PeerIdInvalid as e:
-        print("User hasn't started the bot (or is from a group)")
+        print(f"❌ Peer ID invalid for chat {op.id}")
     except Exception as err:
-        print(str(err))
+        print(f"❌ Error auto-approving join request: {str(err)}")
+        # Log more details for debugging
+        print(f"Chat: {op.title} (ID: {op.id})")
+        print(f"User: {kk.first_name} (ID: {kk.id})")
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Start ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -365,10 +429,11 @@ async def op(_, m :Message):
             welcome_text = """**🎉 Welcome to Auto-Approve Bot!**
 
 🤖 **Bot Features:**
-✅ Auto-approve join requests
+✅ Auto-approve join requests immediately
 ✅ Auto-accept pending requests with user account
-✅ Auto-leave channel after completing all requests
+✅ Auto-leave channel after completing all requests or 6 hours
 ✅ Live statistics and logs
+✅ Session cleanup to prevent getting stuck
 
 **📋 Available Commands:**
 /start - Show this welcome message
@@ -376,6 +441,7 @@ async def op(_, m :Message):
 /admindone - Confirm admin permissions and start auto-accept
 /stopaccept - Stop auto-acceptance process
 /stats - Show pending requests statistics
+/cleanup - Force cleanup if bot seems stuck
 
 **🔗 Channels:**
 📢 MAIN CHANNEL: @JNKBACKUP
