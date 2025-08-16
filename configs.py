@@ -1,12 +1,12 @@
 from os import path, getenv
 
 class Config:
-    API_ID = int(getenv("API_ID", "1990"))
-    API_HASH = getenv("API_HASH", "6a6dcb56edce33056d37baca")
-    BOT_TOKEN = getenv("BOT_TOKEN", "685b0jxs91L9_uKUQ0PG1lIveRAtd4vnSw")
+    API_ID = int(getenv("API_ID", "19937650"))
+    API_HASH = getenv("API_HASH", "6a6df8006df3cb56edce33056d37baca")
+    BOT_TOKEN = getenv("BOT_TOKEN", "8090402815:AAENW_NseaMdZlY6Ywww4QMRu_O-uBsFrCg")
     FSUB = getenv("FSUB", "JNKBACKUP")
-    CHID = int(getenv("CHID", "-100293873"))
-    SUDO = int(getenv("SUDO", "6347574"))
-    MONGO_URI = getenv("MONGO_URI", "mongodb@cluster0.8pzxa6s.mongodb.net/?retryWrites=true&w=majority")
+    CHID = int(getenv("CHID", "-1002806980561"))
+    SUDO = int(getenv("SUDO", "6415368038"))
+    MONGO_URI = getenv("MONGO_URI", "mongodb+srv://nanu:nanu@cluster0.scwh8.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
     
 cfg = Config()
