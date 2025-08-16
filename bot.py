@@ -739,19 +739,12 @@ if __name__ == "__main__":
         print("✅ User bot started successfully!")
         try:
             print("🚀 Starting main bot...")
-            # Start bot and wait for connection
-            app.start()
-            print("✅ Main bot connected successfully!")
-            
-            # Keep the bot running
-            app.idle()
+            # Start bot and run it indefinitely
+            app.run()
+            print("✅ Main bot started successfully!")
         except Exception as e:
             print(f"❌ Error running main bot: {e}")
         finally:
-            try:
-                app.stop()
-            except:
-                pass
             stop_user_bot()  # Clean shutdown of user bot
     else:
         print("❌ Failed to start user bot!")
