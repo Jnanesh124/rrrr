@@ -314,8 +314,10 @@ async def show_stats(_, m: Message):
         if pending_requests and len(pending_requests) > 0:
             stats_text += "**👥 Recent Pending Users:**\n"
             for i, request in enumerate(pending_requests[:5]):  # Show first 5
-                user_name = request.from_user.first_name or "Unknown"
-                stats_text += f"{i+1}. {user_name}\n"
+                # Import the function from user_bot
+                from user_bot import get_user_info_from_request
+                req_user_id, req_user_name = await get_user_info_from_request(request)
+                stats_text += f"{i+1}. {req_user_name or 'Unknown'}\n"
 
             if len(pending_requests) > 5:
                 stats_text += f"... and {len(pending_requests) - 5} more"

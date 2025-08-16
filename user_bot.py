@@ -128,17 +128,72 @@ async def get_pending_requests(chat_id):
             print(f"Error getting pending requests: {e}")
         return []
 
+async def get_user_info_from_request(request):
+    """Extract user info from different request object types"""
+    try:
+        # Handle different request object types
+        if hasattr(request, 'user'):
+            # ChatJoinRequest object
+            return request.user.id, request.user.first_name or "Unknown"
+        elif hasattr(request, 'from_user'):
+            # Some other format
+            return request.from_user.id, request.from_user.first_name or "Unknown"
+        elif hasattr(request, 'user_id'):
+            # Direct user_id format
+            try:
+                user = await user_app.get_users(request.user_id)
+                return user.id, user.first_name or "Unknown"
+            except:
+                return request.user_id, "Unknown"
+        else:
+            # Fallback - try to get ID from the request object directly
+            user_id = getattr(request, 'id', None) or getattr(request, 'user_id', None)
+            if user_id:
+                try:
+                    user = await user_app.get_users(user_id)
+                    return user.id, user.first_name or "Unknown"
+                except:
+                    return user_id, "Unknown"
+            return None, None
+    except Exception as e:
+        print(f"Error extracting user info from request: {e}")
+        return None, None
+
 async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
     """Automatically accept all pending requests and leave when done"""
     try:
         accepted_count = 0
         failed_count = 0
         
-        # Send initial status
-        await bot_app.send_message(user_id, f"🔄 **Starting auto-accept for {chat_title}...**\n\n📊 **Live Status:**\n✅ Accepted: {accepted_count}\n❌ Failed: {failed_count}")
+        # First, fetch and display all pending requests
+        initial_msg = await bot_app.send_message(user_id, f"🔍 **Fetching pending requests for {chat_title}...**")
+        
+        initial_requests = await get_pending_requests(chat_id)
+        total_initial = len(initial_requests)
+        
+        if total_initial == 0:
+            await initial_msg.edit_text(f"📋 **No pending requests found for {chat_title}**\n\n✅ All users are already approved!")
+            return
+        
+        # Show initial pending requests list
+        request_list = "📋 **Pending Requests Found:**\n\n"
+        for i, request in enumerate(initial_requests[:10]):  # Show first 10
+            req_user_id, req_user_name = await get_user_info_from_request(request)
+            if req_user_id:
+                request_list += f"{i+1}. {req_user_name} (ID: {req_user_id})\n"
+        
+        if total_initial > 10:
+            request_list += f"... and {total_initial - 10} more\n\n"
+        else:
+            request_list += "\n"
+            
+        request_list += f"📊 **Total Pending:** {total_initial}\n\n🚀 **Starting auto-accept process...**"
+        
+        await initial_msg.edit_text(request_list)
         
         status_msg = None
         consecutive_empty_checks = 0
+        last_update_time = asyncio.get_event_loop().time()
         
         while auto_accept_running.get(user_id, {}).get(chat_id, False):
             try:
@@ -160,30 +215,49 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
                         break
                         
                     try:
-                        await user_app.approve_chat_join_request(chat_id, request.from_user.id)
-                        accepted_count += 1
+                        req_user_id, req_user_name = await get_user_info_from_request(request)
                         
-                        # Update live status every 5 accepts or every 10 seconds
-                        if accepted_count % 5 == 0:
-                            status_text = f"🔄 **Auto-accepting for {chat_title}...**\n\n📊 **Live Status:**\n✅ Accepted: {accepted_count}\n❌ Failed: {failed_count}\n\n👤 **Last Accepted:** {request.from_user.first_name or 'Unknown'}"
+                        if req_user_id:
+                            await user_app.approve_chat_join_request(chat_id, req_user_id)
+                            accepted_count += 1
                             
-                            if status_msg:
-                                try:
-                                    await status_msg.edit_text(status_text)
-                                except:
-                                    status_msg = await bot_app.send_message(user_id, status_text)
-                            else:
-                                status_msg = await bot_app.send_message(user_id, status_text)
+                            # Send live update for every acceptance
+                            current_time = asyncio.get_event_loop().time()
+                            if current_time - last_update_time >= 3:  # Update every 3 seconds
+                                remaining = total_initial - accepted_count - failed_count
+                                progress_text = f"🔄 **Auto-accepting for {chat_title}...**\n\n"
+                                progress_text += f"📊 **Live Progress:**\n"
+                                progress_text += f"✅ Accepted: {accepted_count}\n"
+                                progress_text += f"❌ Failed: {failed_count}\n"
+                                progress_text += f"⏳ Remaining: {remaining}\n\n"
+                                progress_text += f"👤 **Last Accepted:** {req_user_name}\n"
+                                progress_text += f"📈 **Progress:** {((accepted_count + failed_count) / total_initial * 100):.1f}%"
+                                
+                                if status_msg:
+                                    try:
+                                        await status_msg.edit_text(progress_text)
+                                    except:
+                                        status_msg = await bot_app.send_message(user_id, progress_text)
+                                else:
+                                    status_msg = await bot_app.send_message(user_id, progress_text)
+                                
+                                last_update_time = current_time
+                            
+                            print(f"✅ Accepted: {req_user_name} (ID: {req_user_id})")
+                        else:
+                            failed_count += 1
+                            print(f"❌ Failed to get user info from request")
                         
                         await asyncio.sleep(1)  # Small delay to avoid flood
                         
                     except FloodWait as e:
+                        print(f"⏳ Flood wait: {e.value} seconds")
                         await asyncio.sleep(e.value)
                     except Exception as e:
                         failed_count += 1
-                        print(f"Failed to accept request: {e}")
+                        print(f"❌ Failed to accept request: {e}")
                 
-                await asyncio.sleep(3)  # Wait before next batch check
+                await asyncio.sleep(2)  # Wait before next batch check
                 
             except Exception as e:
                 print(f"Error in auto-accept loop: {e}")
