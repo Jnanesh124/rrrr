@@ -320,7 +320,9 @@ async def show_stats(_, m: Message):
                 stats_text += f"{i+1}. {req_user_name or 'Unknown'}\n"
 
             if len(pending_requests) > 5:
-                stats_text += f"... and {len(pending_requests) - 5} more"
+                stats_text += f"... and {len(pending_requests) - 5} more\n\n"
+            
+            stats_text += "**📝 Note:** Users with too many channels/groups or deleted accounts will be automatically ignored during processing."
 
         await m.reply_text(stats_text)
 
