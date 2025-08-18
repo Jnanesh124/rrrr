@@ -675,12 +675,13 @@ async def approve(_, m: Message):
     try:
         add_group(m.chat.id)
 
+        # Add user to database BEFORE approving so they can receive broadcasts
+        add_user(kk.id)
+        print(f"👤 Added user {kk.first_name or 'Unknown'} (ID: {kk.id}) to database")
+
         # Auto-approve the join request
         await app.approve_chat_join_request(op.id, kk.id)
         print(f"✅ Auto-approved join request from {kk.first_name or 'Unknown'} (ID: {kk.id}) in {op.title or 'Unknown'}")
-
-        # Add user to database immediately
-        add_user(kk.id)
 
         # Send welcome message with proper delay and error handling
         try:
