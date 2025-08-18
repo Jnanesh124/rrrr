@@ -707,7 +707,7 @@ async def op(_, m: Message):
             print(f"❌ Could not send error message to {user_id}")
 
 # Handle start command in groups
-@app.on_message(filters.command("start") & (filters.group | filters.supergroup))
+@app.on_message(filters.command("start") & filters.group)
 async def start_group(_, m: Message):
     user_name = m.from_user.first_name or "User"
     add_group(m.chat.id)
