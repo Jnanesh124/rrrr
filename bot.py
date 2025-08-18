@@ -591,11 +591,14 @@ async def welcome_new_members(_, m: Message):
                 print(f"⚠️ Welcome message failed for new member, they'll get it when they /start: {welcome_error}")
 
 async def send_welcome_message(user, group_name="Unknown Group"):
-    """Send simple welcome message to approved user"""
+    """Send simple welcome message to approved user and add to database"""
     try:
         # Ensure user ID is valid integer
         user_id = int(user.id) if hasattr(user, 'id') else user
         user_name = getattr(user, 'first_name', 'Unknown') or 'Unknown'
+
+        # Add user to database first
+        add_user(user_id)
 
         # Simple welcome message
         welcome_text = f"**Hi {user_name}! Your request accepted {group_name}**"
@@ -607,20 +610,11 @@ async def send_welcome_message(user, group_name="Unknown Group"):
 
         except (errors.PeerIdInvalid, errors.UserIsBlocked):
             print(f"⚠️ User {user_name} (ID: {user_id}) hasn't started the bot or blocked it")
-            try:
-                add_user(user_id)
-                print(f"✅ User {user_id} added to database for future welcome")
-            except:
-                pass
+            print(f"✅ User {user_id} added to database for future messages")
 
         except Exception as text_err:
             print(f"❌ Could not send welcome message to user {user_id}: {text_err}")
-            # Still add to database 
-            try:
-                add_user(user_id)
-                print(f"✅ User {user_id} added to database")
-            except:
-                pass
+            print(f"✅ User {user_id} added to database")
 
     except Exception as e:
         print(f"❌ Unexpected error in send_welcome_message: {e}")
@@ -694,63 +688,63 @@ Thanks for joining our channel! 🎊
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Broadcast ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-@app.on_message(filters.command("broadcast") & filters.user(cfg.SUDO))
-async def broadcast_welcome(_, m: Message):
-    """Broadcast welcome message and start command info to all users"""
-    allusers = users
-    lel = await m.reply_text("`⚡️ Broadcasting welcome messages to all users...`")
-    success = 0
-    failed = 0
-    deactivated = 0
-    blocked = 0
+async def full_userbase():
+    """Get all users from database"""
+    user_docs = users.find({})
+    user_list = []
+    for doc in user_docs:
+        user_list.append(int(doc["user_id"]))
+    return user_list
 
-    # Welcome message to broadcast
-    broadcast_message = """**🎉 Welcome to Auto-Approve Bot!**
+async def del_user(user_id):
+    """Delete user from database"""
+    return remove_user(user_id)
 
-🤖 **Your Personal Telegram Assistant:**
-✅ **Instant Auto-Approval** — Join requests approved immediately
-✅ **Smart Pending Requests** — Auto-accept with user account  
-✅ **Auto-Leave Protection** — Leaves channels after 6 hours to protect your account
-✅ **Live Statistics** — Real-time processing updates
-✅ **Smart Session Management** — Never gets stuck!
+@app.on_message(filters.private & filters.command('broadcast') & filters.user(cfg.SUDO))
+async def send_text(client, message: Message):
+    if message.reply_to_message:
+        query = await full_userbase()
+        broadcast_msg = message.reply_to_message
+        total = 0
+        successful = 0
+        blocked = 0
+        deleted = 0
+        unsuccessful = 0
+        
+        pls_wait = await message.reply("<i>Broadcasting Message.. This will Take Some Time</i>")
+        for chat_id in query:
+            try:
+                await broadcast_msg.copy(chat_id)
+                successful += 1
+            except FloodWait as e:
+                await asyncio.sleep(e.value)
+                await broadcast_msg.copy(chat_id)
+                successful += 1
+            except errors.UserIsBlocked:
+                await del_user(chat_id)
+                blocked += 1
+            except errors.InputUserDeactivated:
+                await del_user(chat_id)
+                deleted += 1
+            except:
+                unsuccessful += 1
+                pass
+            total += 1
+        
+        status = f"""<b><u>Broadcast Completed</u>
 
-**📋 Essential Commands:**
-🏠 `/start` — Show welcome message
-🚀 `/pendingaccept` — Start auto-pending request acceptance
-✅ `/admindone` — Confirm admin permissions 
-🛑 `/stopaccept` — Stop auto-acceptance process
-📊 `/stats` — Show pending requests statistics
-🧹 `/cleanup` — Force cleanup if stuck
+Total Users: <code>{total}</code>
+Successful: <code>{successful}</code>
+Blocked Users: <code>{blocked}</code>
+Deleted Accounts: <code>{deleted}</code>
+Unsuccessful: <code>{unsuccessful}</code></b>"""
+        
+        return await pls_wait.edit(status)
 
-**🔗 Official Channels:**
-📢 **Main Channel:** @JNKBACKUP
-🤖 **Bot Updates:** @JNK_BOTS
-
-**Ready to get started? Try `/pendingaccept` now!** 🚀"""
-
-    for usrs in allusers.find():
-        try:
-            userid = usrs["user_id"]
-            await app.send_message(int(userid), broadcast_message)
-            success += 1
-        except FloodWait as ex:
-            await asyncio.sleep(ex.value)
-            await app.send_message(int(userid), broadcast_message)
-        except errors.InputUserDeactivated:
-            deactivated += 1
-            remove_user(userid)
-        except errors.UserIsBlocked:
-            blocked += 1
-        except Exception as e:
-            print(e)
-            failed += 1
-
-    await lel.edit(
-        f"✅ Successfully broadcasted to `{success}` users.\n"
-        f"❌ Failed to broadcast to `{failed}` users.\n"
-        f"👾 `{blocked}` users have blocked the bot.\n"
-        f"👻 `{deactivated}` users are deactivated."
-    )
+    else:
+        msg = await message.reply("❌ **Reply to a message to broadcast it to all users.**")
+        await asyncio.sleep(8)
+        await msg.delete()
 
 
 async def startup_check():
