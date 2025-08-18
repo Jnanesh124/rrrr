@@ -22,3 +22,7 @@ args = "gunicorn app:app --bind 0.0.0.0:5000 &"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python3 bot.py"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
