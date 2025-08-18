@@ -751,21 +751,38 @@ async def send_text(client, message: Message):
     if message.reply_to_message:
         query = await full_userbase()
         broadcast_msg = message.reply_to_message
-        total = 0
+        total_users = len(query)
         successful = 0
         blocked = 0
         deleted = 0
         unsuccessful = 0
         
-        pls_wait = await message.reply("<i>Broadcasting Message.. This will Take Some Time</i>")
-        for chat_id in query:
+        # Initial broadcast status message
+        pls_wait = await message.reply(
+            f"📡 <b>Live Broadcast Progress</b>\n\n"
+            f"👥 <b>Total Users:</b> <code>{total_users}</code>\n"
+            f"✅ <b>Sent:</b> <code>0</code>\n"
+            f"⏳ <b>Remaining:</b> <code>{total_users}</code>\n"
+            f"🚫 <b>Blocked:</b> <code>0</code>\n"
+            f"❌ <b>Deleted:</b> <code>0</code>\n"
+            f"⚠️ <b>Failed:</b> <code>0</code>\n\n"
+            f"📊 <b>Progress:</b> 0.0%\n"
+            f"🔄 <b>Status:</b> Starting broadcast..."
+        )
+        
+        last_update_time = asyncio.get_event_loop().time()
+        
+        for index, chat_id in enumerate(query, 1):
             try:
                 await broadcast_msg.copy(chat_id)
                 successful += 1
             except FloodWait as e:
                 await asyncio.sleep(e.value)
-                await broadcast_msg.copy(chat_id)
-                successful += 1
+                try:
+                    await broadcast_msg.copy(chat_id)
+                    successful += 1
+                except:
+                    unsuccessful += 1
             except errors.UserIsBlocked:
                 await del_user(chat_id)
                 blocked += 1
@@ -774,18 +791,57 @@ async def send_text(client, message: Message):
                 deleted += 1
             except:
                 unsuccessful += 1
-                pass
-            total += 1
+            
+            # Update progress every 10 messages or every 3 seconds
+            current_time = asyncio.get_event_loop().time()
+            if index % 10 == 0 or (current_time - last_update_time) >= 3:
+                remaining = total_users - index
+                progress_percentage = (index / total_users) * 100
+                
+                # Determine current status
+                if remaining == 0:
+                    current_status = "✅ Broadcast completed!"
+                elif successful > 0:
+                    current_status = f"📤 Broadcasting... (Last: User #{index})"
+                else:
+                    current_status = "🔄 Processing users..."
+                
+                live_status = (
+                    f"📡 <b>Live Broadcast Progress</b>\n\n"
+                    f"👥 <b>Total Users:</b> <code>{total_users}</code>\n"
+                    f"✅ <b>Sent:</b> <code>{successful}</code>\n"
+                    f"⏳ <b>Remaining:</b> <code>{remaining}</code>\n"
+                    f"🚫 <b>Blocked:</b> <code>{blocked}</code>\n"
+                    f"❌ <b>Deleted:</b> <code>{deleted}</code>\n"
+                    f"⚠️ <b>Failed:</b> <code>{unsuccessful}</code>\n\n"
+                    f"📊 <b>Progress:</b> {progress_percentage:.1f}%\n"
+                    f"🔄 <b>Status:</b> {current_status}"
+                )
+                
+                try:
+                    await pls_wait.edit_text(live_status)
+                    last_update_time = current_time
+                except:
+                    pass  # Continue if edit fails
+            
+            # Small delay to prevent flooding
+            await asyncio.sleep(0.1)
         
-        status = f"""<b><u>Broadcast Completed</u>
+        # Final completion status
+        final_status = f"""<b><u>📡 Broadcast Completed Successfully!</u></b>
 
-Total Users: <code>{total}</code>
-Successful: <code>{successful}</code>
-Blocked Users: <code>{blocked}</code>
-Deleted Accounts: <code>{deleted}</code>
-Unsuccessful: <code>{unsuccessful}</code></b>"""
+👥 <b>Total Users:</b> <code>{total_users}</code>
+✅ <b>Successfully Sent:</b> <code>{successful}</code>
+🚫 <b>Blocked Users:</b> <code>{blocked}</code>
+❌ <b>Deleted Accounts:</b> <code>{deleted}</code>
+⚠️ <b>Unsuccessful:</b> <code>{unsuccessful}</code>
+
+📈 <b>Success Rate:</b> {(successful/total_users*100):.1f}%
+🎯 <b>Status:</b> Broadcast completed!
+
+💡 <b>Note:</b> Blocked and deleted users have been cleaned from database."""
         
-        return await pls_wait.edit(status)
+        return await pls_wait.edit_text(final_status)
 
     else:
         msg = await message.reply("❌ **Reply to a message to broadcast it to all users.**")
