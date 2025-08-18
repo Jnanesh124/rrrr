@@ -305,66 +305,78 @@ async def handle_admin_done(user_id, message, callback=None):
 async def stop_accept(_, m: Message):
     user_id = m.from_user.id
     user_name = m.from_user.first_name or "User"
-
-    # Check if there are any active processes
-    has_active_process = False
-    stopped_channels = []
-
-    if user_id in auto_accept_running:
-        for chat_id, is_running in auto_accept_running[user_id].items():
-            if is_running:
-                has_active_process = True
-                # Get channel name if available
-                channel_name = "Unknown Channel"
-                if user_id in pending_channels and pending_channels[user_id].get('chat_id') == chat_id:
-                    channel_name = pending_channels[user_id].get('chat_title', 'Unknown Channel')
-                stopped_channels.append(channel_name)
-                
-                # Stop the process
-                auto_accept_running[user_id][chat_id] = False
-
-    if not has_active_process:
-        await m.reply_text(
-            f"❌ **No active auto-accept process found!**\n\n"
-            f"👋 **Hi {user_name}!**\n\n"
-            f"💡 **Available commands:**\n"
-            f"🚀 `/pendingaccept` - Start auto-pending request acceptance\n"
-            f"📊 `/stats` - Show statistics\n"
-            f"🏠 `/start` - Show welcome message\n"
-            f"🧹 `/cleanup` - Force cleanup if stuck"
-        )
-        return
-
-    # Comprehensive cleanup
-    if user_id in auto_accept_running:
-        del auto_accept_running[user_id]
-    if user_id in pending_channels:
-        del pending_channels[user_id]
-
-    # Reset user state to IDLE
-    user_states[user_id] = UserState.IDLE
-
-    # Create detailed success message
-    success_text = f"✅ **Auto-accept process stopped successfully!**\n\n"
-    success_text += f"👋 **Hi {user_name}!**\n\n"
     
-    if stopped_channels:
-        if len(stopped_channels) == 1:
-            success_text += f"🛑 **Stopped processing:** {stopped_channels[0]}\n\n"
-        else:
-            success_text += f"🛑 **Stopped processing {len(stopped_channels)} channels:**\n"
-            for channel in stopped_channels:
-                success_text += f"   • {channel}\n"
-            success_text += "\n"
-    
-    success_text += f"📝 **Session cleared** - All data has been reset\n\n"
-    success_text += f"💡 **What's next?**\n"
-    success_text += f"🚀 Use `/pendingaccept` to start fresh with a new channel\n"
-    success_text += f"📊 Use `/stats` to check current status\n"
-    success_text += f"🏠 Use `/start` to see the welcome message\n\n"
-    success_text += f"🔄 **Ready to start again anytime!**"
+    print(f"🛑 Stop command received from {user_name} (ID: {user_id})")
 
-    await m.reply_text(success_text)
+    try:
+        # Check if there are any active processes
+        has_active_process = False
+        stopped_channels = []
+
+        if user_id in auto_accept_running:
+            for chat_id, is_running in auto_accept_running[user_id].items():
+                if is_running:
+                    has_active_process = True
+                    # Get channel name if available
+                    channel_name = "Unknown Channel"
+                    if user_id in pending_channels and pending_channels[user_id].get('chat_id') == chat_id:
+                        channel_name = pending_channels[user_id].get('chat_title', 'Unknown Channel')
+                    stopped_channels.append(channel_name)
+                    
+                    # Stop the process
+                    auto_accept_running[user_id][chat_id] = False
+
+        if not has_active_process:
+            await m.reply_text(
+                f"❌ **No active auto-accept process found!**\n\n"
+                f"👋 Hi {user_name}!\n\n"
+                f"💡 **Available commands:**\n"
+                f"🚀 `/pendingaccept` - Start auto-pending request acceptance\n"
+                f"📊 `/stats` - Show statistics\n"
+                f"🏠 `/start` - Show welcome message\n"
+                f"🧹 `/cleanup` - Force cleanup if stuck"
+            )
+            print(f"ℹ️ No active process found for {user_name}")
+            return
+
+        # Comprehensive cleanup
+        if user_id in auto_accept_running:
+            del auto_accept_running[user_id]
+        if user_id in pending_channels:
+            del pending_channels[user_id]
+
+        # Reset user state to IDLE
+        user_states[user_id] = UserState.IDLE
+
+        # Simplified success message
+        success_text = f"✅ **Auto-accept process stopped!**\n\n"
+        success_text += f"👋 Hi {user_name}!\n\n"
+        
+        if stopped_channels:
+            if len(stopped_channels) == 1:
+                success_text += f"🛑 Stopped: {stopped_channels[0]}\n\n"
+            else:
+                success_text += f"🛑 Stopped {len(stopped_channels)} channels\n\n"
+        
+        success_text += f"📝 Session cleared - All data reset\n\n"
+        success_text += f"💡 Use `/pendingaccept` to start fresh!\n"
+        success_text += f"🔄 Ready to start again anytime!"
+
+        await m.reply_text(success_text)
+        print(f"✅ Stop command completed for {user_name} (ID: {user_id})")
+
+    except Exception as e:
+        print(f"❌ Error in stop command for user {user_id}: {e}")
+        try:
+            await m.reply_text(f"✅ Process stopped (with minor issues). Use `/pendingaccept` to start fresh.")
+            # Force cleanup even on error
+            user_states[user_id] = UserState.IDLE
+            if user_id in auto_accept_running:
+                del auto_accept_running[user_id]
+            if user_id in pending_channels:
+                del pending_channels[user_id]
+        except:
+            print(f"❌ Could not send stop response to {user_id}")
 
 @app.on_message(filters.command("cleanup") & filters.private)
 async def force_cleanup(_, m: Message):
@@ -624,116 +636,94 @@ async def send_welcome_message(user):
 async def op(_, m: Message):
     user_id = m.from_user.id
     user_name = m.from_user.first_name or "there"
+    
+    print(f"🔄 Start command received from {user_name} (ID: {user_id})")
 
     try:
-        await app.get_chat_member(cfg.CHID, user_id)
+        # Check channel membership
+        try:
+            await app.get_chat_member(cfg.CHID, user_id)
+            member_status = "joined"
+        except UserNotParticipant:
+            member_status = "not_joined"
+        except Exception as e:
+            print(f"⚠️ Error checking membership: {e}")
+            member_status = "error"
 
-        if m.chat.type == enums.ChatType.PRIVATE:
-            add_user(user_id)
-            
-            # Reset user state to IDLE when using /start - this ensures clean state
-            user_states[user_id] = UserState.IDLE
+        if member_status == "joined":
+            if m.chat.type == enums.ChatType.PRIVATE:
+                add_user(user_id)
+                
+                # Reset user state to IDLE when using /start - this ensures clean state
+                user_states[user_id] = UserState.IDLE
 
-            # Always send full welcome message to all users (whether new or returning)
-            welcome_text = f"""**🎉 Welcome back {user_name} to Auto-Approve Bot!**
+                # Simplified welcome message
+                welcome_text = f"""**🎉 Welcome {user_name} to Auto-Approve Bot!**
 
-🤖 **Your Personal Telegram Assistant:**
-✅ **Instant Auto-Approval** - Join requests approved immediately
-✅ **Smart Pending Requests** - Auto-accept with user account  
-✅ **Auto-Leave Protection** - Leaves channels after 6 hours to protect your account
-✅ **Live Statistics** - Real-time processing updates
-✅ **Smart Session Management** - Never gets stuck!
-
-**📋 Essential Commands:**
-🏠 `/start` - Show this welcome message
+🤖 **Essential Commands:**
+🏠 `/start` - Show this message
 🚀 `/pendingaccept` - Start auto-pending request acceptance
-✅ `/admindone` - Confirm admin permissions 
 🛑 `/stopaccept` - Stop auto-acceptance process
-📊 `/stats` - Show pending requests statistics
+📊 `/stats` - Show statistics
 🧹 `/cleanup` - Force cleanup if stuck
 
 **🔗 Official Channels:**
-📢 **Main Channel:** @JNKBACKUP
-🤖 **Bot Updates:** @JNK_BOTS
-
-**🚀 Quick Start Guide:**
-1️⃣ Use `/pendingaccept` command
-2️⃣ Send your channel/group invite link  
-3️⃣ Give me admin permissions with "Add Members" right
-4️⃣ Click `/admindone` to start the magic! ✨
-5️⃣ Watch as all pending requests get approved automatically!
-
-**🔄 Pro Tip:** 
-User account automatically rejoins when you use `/pendingaccept` again - no manual setup needed!
-
-**🛡️ Account Protection:**
-Your user account will auto-leave channels after processing or 6 hours to prevent Telegram limitations.
+📢 @JNKBACKUP | 🤖 @JNK_BOTS
 
 **Ready to get started? Try `/pendingaccept` now!** 🚀"""
 
-            # Send welcome with a random image
-            try:
-                img = random.choice(images)
-                await m.reply_photo(
-                    photo=img,
-                    caption=welcome_text,
-                    disable_web_page_preview=False
-                )
-                print(f"📸 Start command photo sent to {user_name} (ID: {user_id})")
-            except Exception as photo_err:
-                print(f"⚠️ Start command photo failed for {user_name}: {photo_err}")
-                # Fallback to text if image fails
-                await m.reply_text(welcome_text, disable_web_page_preview=False)
-                print(f"💬 Start command text sent to {user_name} (ID: {user_id})")
+                # Send simple text message first
+                try:
+                    await m.reply_text(welcome_text, disable_web_page_preview=True)
+                    print(f"✅ Start command responded to {user_name} (ID: {user_id})")
+                except Exception as send_err:
+                    print(f"❌ Failed to send start message: {send_err}")
+                    # Try minimal response
+                    await m.reply_text(f"✅ Hello {user_name}! Bot is working. Use /pendingaccept to start.")
 
-        elif m.chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🍿 BACKUP CHANNEL 🍿", url="https://t.me/JNKBACKUP")],
-                [InlineKeyboardButton("🤖 BOT UPDATES 🤖", url="https://t.me/JNK_BOTS")],
-                [InlineKeyboardButton("💬 Start Bot Privately", url=f"https://t.me/{app.me.username}?start=welcome")]
+            else:
+                # Group message - simplified
+                add_group(m.chat.id)
+                await m.reply_text(
+                    f"👋 Hello {user_name}! I'm an Auto-Approve Bot.\n"
+                    f"Start me privately: t.me/{(await app.get_me()).username}?start=welcome"
+                )
+
+        elif member_status == "not_joined":
+            # Reset user state even if not joined channel
+            user_states[user_id] = UserState.IDLE
+            
+            key = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔎 Check Again", callback_data="chk")],
+                [InlineKeyboardButton("📢 Join Channel", url=f"https://t.me/{cfg.FSUB}")]
             ])
-            add_group(m.chat.id)
             await m.reply_text(
-                f"**👋 Hello {user_name}!**\n\n"
-                f"🤖 **I'm an Auto-Approve Bot** that can instantly approve join requests!\n\n"
-                f"📱 **Start me privately** to unlock powerful features like:\n"
-                f"• Auto-accept pending requests\n"
-                f"• Channel management tools\n"
-                f"• Live statistics and more!\n\n"
-                f"👆 **Click the button below to get started!**",
-                reply_markup=keyboard
+                f"🔒 Hello {user_name}!\n\n"
+                f"Please join our channel: @{cfg.FSUB}\n"
+                f"Then click 'Check Again' below!",
+                reply_markup=key
             )
 
-        print(f"✅ {user_name} (ID: {user_id}) started the bot!")
+        else:
+            # Error case
+            user_states[user_id] = UserState.IDLE
+            await m.reply_text(
+                f"⚠️ Hello {user_name}!\n"
+                f"Temporary issue. Try again.\n"
+                f"Channel: @JNKBACKUP"
+            )
 
-    except UserNotParticipant:
-        # Reset user state even if not joined channel
-        user_states[user_id] = UserState.IDLE
-        
-        key = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔎 Check Again 🚀", callback_data="chk")],
-            [InlineKeyboardButton("📢 Join Channel", url=f"https://t.me/{cfg.FSUB}")]
-        ])
-        await m.reply_text(
-            f"**🔒 Hello {user_name}!**\n\n"
-            f"**To use this bot, please join our channel first:**\n\n"
-            f"📢 **Channel:** @{cfg.FSUB}\n"
-            f"🤖 **Bot Updates:** @JNK_BOTS\n\n"
-            f"**After joining, click 'Check Again' below! 👇**",
-            reply_markup=key
-        )
+        print(f"✅ Start command completed for {user_name} (ID: {user_id})")
 
     except Exception as e:
         # Reset user state even on error
         user_states[user_id] = UserState.IDLE
         
         print(f"❌ Error in start command for user {user_id}: {e}")
-        await m.reply_text(
-            f"**⚠️ Hello {user_name}!**\n\n"
-            f"There was a temporary issue. Please try again in a moment.\n\n"
-            f"📢 **Main Channel:** @JNKBACKUP\n"
-            f"🤖 **Bot Updates:** @JNK_BOTS"
-        )
+        try:
+            await m.reply_text(f"⚠️ Hello {user_name}! Bot is working but had an issue. Try /test command.")
+        except:
+            print(f"❌ Could not send error message to {user_id}")
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ callback ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -892,6 +882,22 @@ async def fcast(_, m: Message):
     )
 
 
+async def startup_check():
+    """Check bot startup and initialize properly"""
+    try:
+        # Get bot info to ensure connection
+        me = await app.get_me()
+        print(f"✅ Main bot connected as: {me.first_name} (@{me.username})")
+        return True
+    except Exception as e:
+        print(f"❌ Main bot connection failed: {e}")
+        return False
+
+@app.on_message(filters.command("test"))
+async def test_command(_, m: Message):
+    """Test command to check if bot is responding"""
+    await m.reply_text("✅ Bot is working! All commands should be functional now.")
+
 if __name__ == "__main__":
     # Start user bot first
     if start_user_bot():
@@ -899,7 +905,7 @@ if __name__ == "__main__":
         try:
             print("🚀 Starting main bot...")
             # Start bot and run it indefinitely
-            app.run()
+            app.run(startup_check())
             print("✅ Main bot started successfully!")
         except Exception as e:
             print(f"❌ Error running main bot: {e}")
@@ -909,6 +915,6 @@ if __name__ == "__main__":
         print("❌ Failed to start user bot!")
         print("🚀 Starting main bot anyway...")
         try:
-            app.run()  # Start main bot anyway
+            app.run(startup_check())  # Start main bot anyway
         except Exception as e:
             print(f"❌ Error running main bot: {e}")
