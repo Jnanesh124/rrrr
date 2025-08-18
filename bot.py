@@ -46,47 +46,33 @@ async def add_fsub_channel_cmd(_, m: Message):
             channel_id = channel_input.replace("@", "")
             channel_type = "public"
 
-        # Check if bot is admin with proper permissions
+        # Check if bot can access the channel for membership verification
         try:
             me = await app.get_me()
             bot_member = await app.get_chat_member(channel_id, me.id)
 
-            has_permission = False
             permission_msg = ""
 
             if bot_member.status == "creator":
-                has_permission = True
-                permission_msg = "✅ Creator (all permissions)"
+                permission_msg = "✅ Creator (full access)"
             elif bot_member.status == "administrator":
-                if hasattr(bot_member, 'privileges') and bot_member.privileges:
-                    can_invite = getattr(bot_member.privileges, 'can_invite_users', False)
-                    if can_invite:
-                        has_permission = True
-                        permission_msg = "✅ Admin with 'Add Members' permission"
-                    else:
-                        permission_msg = "❌ Admin but missing 'Add Members' permission"
-                else:
-                    permission_msg = "❌ Admin but cannot verify 'Add Members' permission"
+                permission_msg = "✅ Admin (can check membership)"
+            elif bot_member.status in ["member", "restricted"]:
+                permission_msg = "✅ Member (can check membership)"
             else:
-                permission_msg = "❌ Bot is not admin"
+                permission_msg = "⚠️ Limited access"
 
-            if not has_permission:
-                await m.reply_text(
-                    f"⚠️ **Warning:** {permission_msg} in **{channel_title}**\n\n"
-                    f"The bot needs admin permissions with **'Add Members'** right to check user membership.\n"
-                    f"Please make the bot admin and enable 'Add Members' permission.\n\n"
-                    f"Adding anyway..."
-                )
+            print(f"✅ Bot access verified for {channel_title}: {permission_msg}")
 
-        except errors.ChatAdminRequired:
-            await m.reply_text(f"❌ **Error:** Bot does not have admin rights in **{channel_title}**\n\nPlease make the bot an admin first.")
+        except errors.UserNotParticipant:
+            await m.reply_text(f"❌ **Error:** Bot is not a member of **{channel_title}**\n\nPlease add the bot to the channel first.")
             return
         except errors.PeerIdInvalid:
             await m.reply_text(f"❌ **Error:** Invalid chat ID or username provided for channel: `{channel_input}`")
             return
         except Exception as e:
-            await m.reply_text(f"❌ **Error getting channel info:** {str(e)}\n\nPlease check the channel ID/username.")
-            return
+            print(f"Warning: Could not verify bot access to {channel_title}: {e}")
+            permission_msg = "⚠️ Could not verify access"
 
         # Try to get channel info to display title
         try:
@@ -1225,28 +1211,32 @@ async def check_bot_admin_in_fsub():
                 # Check bot's membership
                 bot_member = await app.get_chat_member(chat_id, me.id)
 
-                if bot_member.status not in ["administrator", "creator"]:
-                    issues.append(f"❌ {channel_title}: Bot is not admin")
-                elif bot_member.status == "administrator":
-                    # Check if bot has proper permissions
-                    if hasattr(bot_member, 'privileges') and bot_member.privileges:
-                        can_invite = getattr(bot_member.privileges, 'can_invite_users', None)
-                        if can_invite is False:
-                            issues.append(f"⚠️ {channel_title}: Bot lacks 'Add Members' permission")
-                        else:
-                            print(f"✅ Bot is admin with proper permissions in {channel_title}")
-                    else:
-                        print(f"✅ Bot is admin in {channel_title}")
-                else:
+                if bot_member.status == "creator":
                     print(f"✅ Bot is creator in {channel_title}")
+                elif bot_member.status == "administrator":
+                    # For force subscription, we only need to check membership
+                    # Bot doesn't need admin rights to check if users are members
+                    print(f"✅ Bot is admin in {channel_title}")
+                else:
+                    # Bot is not admin - but that's OK for membership checking
+                    # We can still check if users are members even as a regular member
+                    print(f"ℹ️ Bot is regular member in {channel_title} (sufficient for membership checking)")
 
+            except errors.ChatAdminRequired:
+                # This means bot can't get member info - might need basic member access
+                issues.append(f"❌ {channel_title}: Bot cannot access member list")
+            except errors.PeerIdInvalid:
+                issues.append(f"❌ {channel_title}: Invalid channel ID")
+            except errors.UserNotParticipant:
+                issues.append(f"❌ {channel_title}: Bot is not a member")
             except Exception as e:
-                # Don't treat all errors as admin issues - some might be temporary
                 error_msg = str(e).lower()
                 if "chat_admin_required" in error_msg:
-                    issues.append(f"❌ {channel_title}: Bot is not admin")
+                    issues.append(f"❌ {channel_title}: Bot needs basic access")
                 elif "peer_id_invalid" in error_msg:
                     issues.append(f"❌ {channel_title}: Invalid channel ID")
+                elif "user_not_participant" in error_msg:
+                    issues.append(f"❌ {channel_title}: Bot is not a member")
                 else:
                     print(f"⚠️ Could not check {channel_title}: {e}")
 
