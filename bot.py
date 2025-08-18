@@ -1176,11 +1176,28 @@ async def check_bot_admin_in_fsub():
                 
                 if bot_member.status not in ["administrator", "creator"]:
                     issues.append(f"❌ {channel_title}: Bot is not admin")
+                elif bot_member.status == "administrator":
+                    # Check if bot has proper permissions
+                    if hasattr(bot_member, 'privileges') and bot_member.privileges:
+                        can_invite = getattr(bot_member.privileges, 'can_invite_users', None)
+                        if can_invite is False:
+                            issues.append(f"⚠️ {channel_title}: Bot lacks 'Add Members' permission")
+                        else:
+                            print(f"✅ Bot is admin with proper permissions in {channel_title}")
+                    else:
+                        print(f"✅ Bot is admin in {channel_title}")
                 else:
-                    print(f"✅ Bot is admin in {channel_title}")
+                    print(f"✅ Bot is creator in {channel_title}")
                     
             except Exception as e:
-                issues.append(f"❌ {channel_title}: {str(e)}")
+                # Don't treat all errors as admin issues - some might be temporary
+                error_msg = str(e).lower()
+                if "chat_admin_required" in error_msg:
+                    issues.append(f"❌ {channel_title}: Bot is not admin")
+                elif "peer_id_invalid" in error_msg:
+                    issues.append(f"❌ {channel_title}: Invalid channel ID")
+                else:
+                    print(f"⚠️ Could not check {channel_title}: {e}")
         
         return issues
         
@@ -1266,9 +1283,34 @@ if __name__ == "__main__":
             # Run startup check
             asyncio.get_event_loop().run_until_complete(startup_check())
             
-            # Keep running
-            app.idle()
             print("✅ Main bot started successfully!")
+            
+            # Keep running using the correct method
+            try:
+                from pyrogram import idle
+                idle()
+            except ImportError:
+                # Fallback for older versions
+                try:
+                    app.idle()
+                except AttributeError:
+                    # Manual idle implementation
+                    import signal
+                    import threading
+                    
+                    def signal_handler(sig, frame):
+                        print("🛑 Stopping bot...")
+                        app.stop()
+                        stop_user_bot()
+                        exit(0)
+                    
+                    signal.signal(signal.SIGINT, signal_handler)
+                    signal.signal(signal.SIGTERM, signal_handler)
+                    
+                    # Keep the main thread alive
+                    event = threading.Event()
+                    event.wait()
+                    
         except Exception as e:
             print(f"❌ Error running main bot: {e}")
         finally:
