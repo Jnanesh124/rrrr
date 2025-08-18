@@ -1128,16 +1128,31 @@ async def generate_fsub_message(user_name, not_joined_channels):
         
         for i, channel in enumerate(not_joined_channels, 1):
             channel_title = channel["channel_title"]
+            channel_id = channel["channel_id"]
             invite_link = channel.get("invite_link")
             
             if invite_link:
+                # Use provided invite link
                 message += f"{i}. **[{channel_title}]({invite_link})**\n"
+            elif not channel_id.startswith("-") and not channel_id.isdigit():
+                # Public channel - create t.me link
+                username = channel_id.replace("@", "")
+                message += f"{i}. **[{channel_title}](https://t.me/{username})**\n"
             else:
-                # Try to generate invite link for public channels
-                channel_id = channel["channel_id"]
-                if not channel_id.startswith("-"):
-                    message += f"{i}. **@{channel_id}** - https://t.me/{channel_id}\n"
-                else:
+                # Private channel without invite link
+                try:
+                    # Try to get chat info and generate invite link
+                    chat = await app.get_chat(int(channel_id))
+                    # Try to create invite link if bot is admin
+                    try:
+                        invite = await app.create_chat_invite_link(int(channel_id))
+                        message += f"{i}. **[{channel_title}]({invite.invite_link})**\n"
+                        # Update database with new invite link
+                        from database import add_fsub_channel
+                        add_fsub_channel(channel_id, channel_title, invite.invite_link, "private")
+                    except:
+                        message += f"{i}. **{channel_title}** (Contact admin for invite)\n"
+                except:
                     message += f"{i}. **{channel_title}** (Contact admin for invite)\n"
         
         message += "\n**📋 Instructions:**\n"
@@ -1235,35 +1250,52 @@ async def initialize_fsub_channels():
             print("ℹ️ No force subscription channels configured")
             return
         
-        channels = cfg.FSUB_CHANNELS.split(',')
+        channels = [ch.strip() for ch in cfg.FSUB_CHANNELS.split(',') if ch.strip()]
         from database import add_fsub_channel
         
+        print(f"🔄 Initializing {len(channels)} force subscription channels...")
+        
         for channel in channels:
-            channel = channel.strip()
-            if not channel:
-                continue
-            
             try:
                 if channel.startswith('@'):
                     # Public channel
                     channel_username = channel.replace('@', '')
-                    chat = await app.get_chat(channel_username)
-                    add_fsub_channel(channel_username, chat.title, None, "public")
-                    print(f"✅ Initialized public channel: {chat.title}")
+                    try:
+                        chat = await app.get_chat(channel_username)
+                        add_fsub_channel(channel_username, chat.title, None, "public")
+                        print(f"✅ Initialized public channel: {chat.title}")
+                    except Exception as e:
+                        print(f"⚠️ Could not get info for @{channel_username}: {e}")
+                        add_fsub_channel(channel_username, f"@{channel_username}", None, "public")
+                        print(f"✅ Added public channel: @{channel_username} (info unavailable)")
                     
                 elif channel.startswith('-') or channel.isdigit():
                     # Private channel by ID
                     channel_id = int(channel)
                     try:
                         chat = await app.get_chat(channel_id)
-                        add_fsub_channel(str(channel_id), chat.title, None, "private")
+                        # Try to generate invite link if bot is admin
+                        invite_link = None
+                        try:
+                            invite = await app.create_chat_invite_link(channel_id)
+                            invite_link = invite.invite_link
+                        except:
+                            pass  # Bot might not be admin or have permission
+                        
+                        add_fsub_channel(str(channel_id), chat.title, invite_link, "private")
                         print(f"✅ Initialized private channel: {chat.title}")
                     except Exception as e:
                         print(f"⚠️ Could not get info for channel {channel_id}: {e}")
-                        add_fsub_channel(str(channel_id), f"Channel {channel_id}", None, "private")
+                        add_fsub_channel(str(channel_id), f"Private Channel {channel_id}", None, "private")
+                        print(f"✅ Added private channel: {channel_id} (info unavailable)")
+                else:
+                    # Invalid format
+                    print(f"⚠️ Invalid channel format: {channel}")
                         
             except Exception as e:
                 print(f"❌ Error initializing channel {channel}: {e}")
+        
+        print(f"✅ Force subscription initialization completed")
                 
     except Exception as e:
         print(f"❌ Error initializing force sub channels: {e}")

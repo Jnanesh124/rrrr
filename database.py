@@ -97,31 +97,37 @@ fsub_channels = client['main']['fsub_channels']
 def add_fsub_channel(channel_id, channel_title=None, invite_link=None, channel_type="private"):
     """Add force subscription channel"""
     try:
+        # Normalize channel_id to string
+        channel_id_str = str(channel_id).strip()
+        
         # Check if already exists
-        existing = fsub_channels.find_one({"channel_id": str(channel_id)})
+        existing = fsub_channels.find_one({"channel_id": channel_id_str})
         if not existing:
             data = {
-                "channel_id": str(channel_id),
+                "channel_id": channel_id_str,
                 "channel_title": channel_title or "Unknown",
                 "invite_link": invite_link,
                 "channel_type": channel_type,  # "private" or "public"
                 "added_at": str(int(__import__('time').time()))
             }
             fsub_channels.insert_one(data)
-            print(f"📝 Added force sub channel: {channel_title} (ID: {channel_id})")
+            print(f"📝 Added force sub channel: {channel_title} (ID: {channel_id_str})")
             return True
         else:
-            # Update existing
+            # Update existing with provided data
             update_data = {}
-            if channel_title:
+            if channel_title and channel_title != "Unknown":
                 update_data["channel_title"] = channel_title
             if invite_link:
                 update_data["invite_link"] = invite_link
             if channel_type:
                 update_data["channel_type"] = channel_type
+                
             if update_data:
-                fsub_channels.update_one({"channel_id": str(channel_id)}, {"$set": update_data})
-                print(f"📝 Updated force sub channel: {channel_title} (ID: {channel_id})")
+                fsub_channels.update_one({"channel_id": channel_id_str}, {"$set": update_data})
+                print(f"📝 Updated force sub channel: {channel_title or existing.get('channel_title', 'Unknown')} (ID: {channel_id_str})")
+            else:
+                print(f"📝 Force sub channel already exists: {existing.get('channel_title', 'Unknown')} (ID: {channel_id_str})")
             return True
     except Exception as e:
         print(f"Error adding force sub channel: {e}")
