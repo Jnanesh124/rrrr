@@ -2,7 +2,7 @@ from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, 
 from pyrogram import filters, Client, errors, enums
 from pyrogram.errors import UserNotParticipant
 from pyrogram.errors.exceptions.flood_420 import FloodWait
-from database import add_user, add_group, all_users, all_groups, users, remove_user
+from database import add_user, add_group, all_users, all_groups, users, remove_user, get_all_fsub_channels, get_fsub_channel
 from configs import cfg
 from user_bot import (user_app, user_states, pending_channels, auto_accept_running,
                      UserState, extract_invite_link_info, check_admin_permissions,
@@ -18,6 +18,190 @@ app = Client(
 )
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Pending Accept Commands ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+@app.on_message(filters.command("addfsub") & filters.private & filters.user(cfg.SUDO))
+async def add_fsub_channel_cmd(_, m: Message):
+    """Add force subscription channel - Admin only"""
+    try:
+        if len(m.command) < 2:
+            await m.reply_text(
+                "**📝 Add Force Subscription Channel**\n\n"
+                "**Usage:**\n"
+                "`/addfsub <channel_id_or_username> [invite_link]`\n\n"
+                "**Examples:**\n"
+                "• `/addfsub -1001234567890 https://t.me/+abcdef`\n"
+                "• `/addfsub @publicchannel`\n"
+                "• `/addfsub -1001234567890` (without invite link)\n\n"
+                "**Note:** For private channels, provide invite link for better user experience."
+            )
+            return
+        
+        channel_input = m.command[1]
+        invite_link = m.command[2] if len(m.command) > 2 else None
+        
+        # Determine if it's a channel ID or username
+        if channel_input.startswith("-") or channel_input.isdigit():
+            channel_id = int(channel_input)
+            channel_type = "private"
+        else:
+            channel_id = channel_input.replace("@", "")
+            channel_type = "public"
+        
+        # Try to get channel info
+        try:
+            chat = await app.get_chat(channel_id)
+            channel_title = chat.title or f"Channel {channel_id}"
+            
+            # Check if bot is admin
+            me = await app.get_me()
+            bot_member = await app.get_chat_member(channel_id, me.id)
+            
+            if bot_member.status not in ["administrator", "creator"]:
+                await m.reply_text(
+                    f"⚠️ **Warning:** Bot is not admin in **{channel_title}**\n\n"
+                    f"The bot needs admin permissions to check user membership.\n"
+                    f"Please make the bot admin in the channel first.\n\n"
+                    f"Adding anyway..."
+                )
+            
+        except Exception as e:
+            await m.reply_text(f"❌ **Error getting channel info:** {str(e)}\n\nPlease check the channel ID/username.")
+            return
+        
+        # Add to database
+        from database import add_fsub_channel
+        success = add_fsub_channel(str(channel_id), channel_title, invite_link, channel_type)
+        
+        if success:
+            status_text = f"✅ **Force Subscription Channel Added!**\n\n" \
+                         f"**Channel:** {channel_title}\n" \
+                         f"**ID/Username:** `{channel_id}`\n" \
+                         f"**Type:** {channel_type.title()}\n"
+            
+            if invite_link:
+                status_text += f"**Invite Link:** [Join Here]({invite_link})\n"
+            
+            status_text += f"\n**Bot Status:** {'✅ Admin' if bot_member.status in ['administrator', 'creator'] else '❌ Not Admin'}\n\n"
+            status_text += "💡 Users must now join this channel to use `/pendingaccept`"
+            
+            await m.reply_text(status_text, disable_web_page_preview=True)
+        else:
+            await m.reply_text("❌ **Failed to add channel.** Please try again.")
+            
+    except Exception as e:
+        await m.reply_text(f"❌ **Error:** {str(e)}")
+
+@app.on_message(filters.command("removefsub") & filters.private & filters.user(cfg.SUDO))
+async def remove_fsub_channel_cmd(_, m: Message):
+    """Remove force subscription channel - Admin only"""
+    try:
+        if len(m.command) < 2:
+            # Show current channels
+            from database import get_all_fsub_channels
+            channels = get_all_fsub_channels()
+            
+            if not channels:
+                await m.reply_text("📝 **No force subscription channels found.**")
+                return
+            
+            message = "**📝 Current Force Subscription Channels:**\n\n"
+            for i, channel in enumerate(channels, 1):
+                message += f"{i}. **{channel['channel_title']}**\n"
+                message += f"   ID: `{channel['channel_id']}`\n"
+                message += f"   Type: {channel.get('channel_type', 'unknown').title()}\n\n"
+            
+            message += "**Usage:** `/removefsub <channel_id_or_username>`\n"
+            message += "**Example:** `/removefsub -1001234567890`"
+            
+            await m.reply_text(message)
+            return
+        
+        channel_input = m.command[1]
+        
+        # Convert to string for database lookup
+        if channel_input.startswith("-") or channel_input.isdigit():
+            channel_id = str(int(channel_input))
+        else:
+            channel_id = channel_input.replace("@", "")
+        
+        # Get channel info before removing
+        from database import get_fsub_channel, remove_fsub_channel
+        channel_info = get_fsub_channel(channel_id)
+        
+        if not channel_info:
+            await m.reply_text(f"❌ **Channel not found:** `{channel_id}`\n\nUse `/removefsub` to see current channels.")
+            return
+        
+        # Remove from database
+        success = remove_fsub_channel(channel_id)
+        
+        if success:
+            await m.reply_text(
+                f"✅ **Force Subscription Channel Removed!**\n\n"
+                f"**Channel:** {channel_info.get('channel_title', 'Unknown')}\n"
+                f"**ID:** `{channel_id}`\n\n"
+                f"Users no longer need to join this channel."
+            )
+        else:
+            await m.reply_text("❌ **Failed to remove channel.** Please try again.")
+            
+    except Exception as e:
+        await m.reply_text(f"❌ **Error:** {str(e)}")
+
+@app.on_message(filters.command("listfsub") & filters.private & filters.user(cfg.SUDO))
+async def list_fsub_channels_cmd(_, m: Message):
+    """List all force subscription channels - Admin only"""
+    try:
+        from database import get_all_fsub_channels
+        channels = get_all_fsub_channels()
+        
+        if not channels:
+            await m.reply_text(
+                "📝 **No Force Subscription Channels**\n\n"
+                "Use `/addfsub` to add channels.\n\n"
+                "**Example:**\n"
+                "`/addfsub -1001234567890 https://t.me/+abcdef`"
+            )
+            return
+        
+        message = f"**📝 Force Subscription Channels ({len(channels)})**\n\n"
+        
+        # Check bot admin status
+        admin_issues = await check_bot_admin_in_fsub()
+        
+        for i, channel in enumerate(channels, 1):
+            channel_title = channel['channel_title']
+            channel_id = channel['channel_id']
+            channel_type = channel.get('channel_type', 'unknown')
+            invite_link = channel.get('invite_link')
+            
+            message += f"**{i}. {channel_title}**\n"
+            message += f"   📱 ID: `{channel_id}`\n"
+            message += f"   🏷️ Type: {channel_type.title()}\n"
+            
+            if invite_link:
+                message += f"   🔗 [Invite Link]({invite_link})\n"
+            
+            # Check admin status
+            admin_status = "✅ Admin" if not any(channel_id in issue for issue in admin_issues) else "❌ Not Admin"
+            message += f"   👤 Bot Status: {admin_status}\n\n"
+        
+        if admin_issues:
+            message += "⚠️ **Admin Issues Found:**\n"
+            for issue in admin_issues[:3]:  # Show first 3 issues
+                message += f"• {issue}\n"
+            if len(admin_issues) > 3:
+                message += f"• ...and {len(admin_issues) - 3} more\n"
+            message += "\n"
+        
+        message += "**Commands:**\n"
+        message += "• `/addfsub` - Add channel\n"
+        message += "• `/removefsub` - Remove channel"
+        
+        await m.reply_text(message, disable_web_page_preview=True)
+        
+    except Exception as e:
+        await m.reply_text(f"❌ **Error:** {str(e)}")
+
 @app.on_message(filters.private & filters.command('broadcast') & filters.user(cfg.SUDO))
 async def send_text(client, message: Message):
     if message.reply_to_message:
@@ -396,8 +580,27 @@ Your user account will auto-leave channels after processing or 6 hours to preven
 @app.on_message(filters.command("pendingaccept") & filters.private)
 async def pending_accept_start(_, m: Message):
     user_id = m.from_user.id
+    user_name = m.from_user.first_name or "User"
+    
     add_user(user_id)
 
+    # Check force subscription first
+    is_member, not_joined = await check_user_membership(user_id)
+    
+    if not is_member:
+        # Generate force subscription message
+        fsub_message = await generate_fsub_message(user_name, not_joined)
+        
+        # Create check again button
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Check Again", callback_data="check_fsub")],
+            [InlineKeyboardButton("🆘 Support", url="https://t.me/JNK_BOTS")]
+        ])
+        
+        await m.reply_text(fsub_message, reply_markup=keyboard, disable_web_page_preview=True)
+        return
+
+    # If user is member of all channels, proceed with normal flow
     # Stop any existing auto-accept processes for this user
     if user_id in auto_accept_running:
         for chat_id in auto_accept_running[user_id]:
@@ -543,6 +746,40 @@ async def cancel_setup_callback(_, cb: CallbackQuery):
 
     await cb.answer("Setup cancelled!", show_alert=False)
     await cb.message.edit_text("❌ **Setup Cancelled**\n\nYou can start again anytime with /pendingaccept")
+
+@app.on_callback_query(filters.regex("check_fsub"))
+async def check_fsub_callback(_, cb: CallbackQuery):
+    user_id = cb.from_user.id
+    user_name = cb.from_user.first_name or "User"
+    
+    # Re-check force subscription
+    is_member, not_joined = await check_user_membership(user_id)
+    
+    if not is_member:
+        # Still not a member, update message with current status
+        fsub_message = await generate_fsub_message(user_name, not_joined)
+        
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Check Again", callback_data="check_fsub")],
+            [InlineKeyboardButton("🆘 Support", url="https://t.me/JNK_BOTS")]
+        ])
+        
+        await cb.answer("❌ You're still not a member of all channels!", show_alert=True)
+        await cb.message.edit_text(fsub_message, reply_markup=keyboard, disable_web_page_preview=True)
+        return
+    
+    # User is now a member of all channels
+    await cb.answer("✅ Verification successful! You can now use /pendingaccept", show_alert=True)
+    
+    success_message = f"**🎉 Verification Successful - {user_name}!**\n\n" \
+                     "✅ You are now a member of all required channels!\n\n" \
+                     "🚀 **Ready to use bot features:**\n" \
+                     "• `/pendingaccept` - Start auto-pending request acceptance\n" \
+                     "• `/stats` - Show statistics\n" \
+                     "• `/stopaccept` - Stop auto-acceptance process\n\n" \
+                     "💡 **Next step:** Use `/pendingaccept` to start!"
+    
+    await cb.message.edit_text(success_message)
 
 async def handle_admin_done(user_id, message, callback=None):
     if user_states.get(user_id) != UserState.WAITING_FOR_ADMIN_CONFIRMATION:
@@ -827,6 +1064,130 @@ async def del_user(user_id):
     """Delete user from database"""
     return remove_user(user_id)
 
+async def check_user_membership(user_id):
+    """Check if user is member of all force subscription channels"""
+    try:
+        fsub_channels = get_all_fsub_channels()
+        if not fsub_channels:
+            return True, []  # No force sub channels, allow access
+        
+        not_joined = []
+        
+        for channel in fsub_channels:
+            channel_id = channel["channel_id"]
+            channel_title = channel["channel_title"]
+            invite_link = channel.get("invite_link")
+            
+            try:
+                # Convert channel_id to int if it's numeric (private channels)
+                if channel_id.startswith("-") or channel_id.isdigit():
+                    chat_id = int(channel_id)
+                else:
+                    chat_id = channel_id  # Public channel username
+                
+                # Check membership
+                member = await app.get_chat_member(chat_id, user_id)
+                
+                if member.status in ["left", "kicked"]:
+                    not_joined.append({
+                        "channel_id": channel_id,
+                        "channel_title": channel_title,
+                        "invite_link": invite_link
+                    })
+                    
+            except errors.UserNotParticipant:
+                not_joined.append({
+                    "channel_id": channel_id,
+                    "channel_title": channel_title,
+                    "invite_link": invite_link
+                })
+            except Exception as e:
+                print(f"Error checking membership for {channel_id}: {e}")
+                # If we can't check, assume not joined for safety
+                not_joined.append({
+                    "channel_id": channel_id,
+                    "channel_title": channel_title,
+                    "invite_link": invite_link
+                })
+        
+        is_member_of_all = len(not_joined) == 0
+        return is_member_of_all, not_joined
+        
+    except Exception as e:
+        print(f"Error in check_user_membership: {e}")
+        return False, []
+
+async def generate_fsub_message(user_name, not_joined_channels):
+    """Generate force subscription message with invite links"""
+    try:
+        if not not_joined_channels:
+            return None
+        
+        message = f"**🔒 Access Restricted - {user_name}!**\n\n"
+        message += "To use `/pendingaccept` command, you must join all our channels first:\n\n"
+        
+        for i, channel in enumerate(not_joined_channels, 1):
+            channel_title = channel["channel_title"]
+            invite_link = channel.get("invite_link")
+            
+            if invite_link:
+                message += f"{i}. **[{channel_title}]({invite_link})**\n"
+            else:
+                # Try to generate invite link for public channels
+                channel_id = channel["channel_id"]
+                if not channel_id.startswith("-"):
+                    message += f"{i}. **@{channel_id}** - https://t.me/{channel_id}\n"
+                else:
+                    message += f"{i}. **{channel_title}** (Contact admin for invite)\n"
+        
+        message += "\n**📋 Instructions:**\n"
+        message += "1️⃣ Join ALL channels above\n"
+        message += "2️⃣ Click **✅ Check Again** button\n"
+        message += "3️⃣ Once verified, you can use `/pendingaccept`\n\n"
+        message += "💡 **Note:** You must be a member of all channels to access bot features."
+        
+        return message
+        
+    except Exception as e:
+        print(f"Error generating fsub message: {e}")
+        return "**🔒 Access Restricted!**\n\nPlease join our channels to use this bot."
+
+async def check_bot_admin_in_fsub():
+    """Check if bot has admin permissions in force sub channels"""
+    try:
+        fsub_channels = get_all_fsub_channels()
+        me = await app.get_me()
+        
+        issues = []
+        
+        for channel in fsub_channels:
+            channel_id = channel["channel_id"]
+            channel_title = channel["channel_title"]
+            
+            try:
+                # Convert channel_id to int if it's numeric
+                if channel_id.startswith("-") or channel_id.isdigit():
+                    chat_id = int(channel_id)
+                else:
+                    chat_id = channel_id
+                
+                # Check bot's membership
+                bot_member = await app.get_chat_member(chat_id, me.id)
+                
+                if bot_member.status not in ["administrator", "creator"]:
+                    issues.append(f"❌ {channel_title}: Bot is not admin")
+                else:
+                    print(f"✅ Bot is admin in {channel_title}")
+                    
+            except Exception as e:
+                issues.append(f"❌ {channel_title}: {str(e)}")
+        
+        return issues
+        
+    except Exception as e:
+        print(f"Error checking bot admin status: {e}")
+        return [f"Error checking admin status: {e}"]
+
 async def startup_check():
     """Check bot startup and initialize properly"""
     try:
@@ -837,10 +1198,58 @@ async def startup_check():
         # Get bot info to ensure connection
         me = await app.get_me()
         print(f"✅ Main bot connected as: {me.first_name} (@{me.username})")
+        
+        # Check bot admin status in force sub channels
+        admin_issues = await check_bot_admin_in_fsub()
+        if admin_issues:
+            print("⚠️ Force subscription admin issues:")
+            for issue in admin_issues:
+                print(f"  {issue}")
+        
         return True
     except Exception as e:
         print(f"❌ Main bot connection failed: {e}")
         return False
+
+async def initialize_fsub_channels():
+    """Initialize force subscription channels from config"""
+    try:
+        if not cfg.FSUB_CHANNELS:
+            print("ℹ️ No force subscription channels configured")
+            return
+        
+        channels = cfg.FSUB_CHANNELS.split(',')
+        from database import add_fsub_channel
+        
+        for channel in channels:
+            channel = channel.strip()
+            if not channel:
+                continue
+            
+            try:
+                if channel.startswith('@'):
+                    # Public channel
+                    channel_username = channel.replace('@', '')
+                    chat = await app.get_chat(channel_username)
+                    add_fsub_channel(channel_username, chat.title, None, "public")
+                    print(f"✅ Initialized public channel: {chat.title}")
+                    
+                elif channel.startswith('-') or channel.isdigit():
+                    # Private channel by ID
+                    channel_id = int(channel)
+                    try:
+                        chat = await app.get_chat(channel_id)
+                        add_fsub_channel(str(channel_id), chat.title, None, "private")
+                        print(f"✅ Initialized private channel: {chat.title}")
+                    except Exception as e:
+                        print(f"⚠️ Could not get info for channel {channel_id}: {e}")
+                        add_fsub_channel(str(channel_id), f"Channel {channel_id}", None, "private")
+                        
+            except Exception as e:
+                print(f"❌ Error initializing channel {channel}: {e}")
+                
+    except Exception as e:
+        print(f"❌ Error initializing force sub channels: {e}")
 
 if __name__ == "__main__":
     # Start user bot first
@@ -848,8 +1257,17 @@ if __name__ == "__main__":
         print("✅ User bot started successfully!")
         try:
             print("🚀 Starting main bot...")
-            # Run startup check first, then run bot
-            app.run()
+            app.start()
+            
+            # Initialize force subscription channels
+            import asyncio
+            asyncio.get_event_loop().run_until_complete(initialize_fsub_channels())
+            
+            # Run startup check
+            asyncio.get_event_loop().run_until_complete(startup_check())
+            
+            # Keep running
+            app.idle()
             print("✅ Main bot started successfully!")
         except Exception as e:
             print(f"❌ Error running main bot: {e}")

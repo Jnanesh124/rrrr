@@ -90,3 +90,75 @@ def get_all_accepted_users():
         for doc in user_docs:
             user_list.append(int(doc["user_id"]))
         return user_list
+
+# Force subscription channels management
+fsub_channels = client['main']['fsub_channels']
+
+def add_fsub_channel(channel_id, channel_title=None, invite_link=None, channel_type="private"):
+    """Add force subscription channel"""
+    try:
+        # Check if already exists
+        existing = fsub_channels.find_one({"channel_id": str(channel_id)})
+        if not existing:
+            data = {
+                "channel_id": str(channel_id),
+                "channel_title": channel_title or "Unknown",
+                "invite_link": invite_link,
+                "channel_type": channel_type,  # "private" or "public"
+                "added_at": str(int(__import__('time').time()))
+            }
+            fsub_channels.insert_one(data)
+            print(f"📝 Added force sub channel: {channel_title} (ID: {channel_id})")
+            return True
+        else:
+            # Update existing
+            update_data = {}
+            if channel_title:
+                update_data["channel_title"] = channel_title
+            if invite_link:
+                update_data["invite_link"] = invite_link
+            if channel_type:
+                update_data["channel_type"] = channel_type
+            if update_data:
+                fsub_channels.update_one({"channel_id": str(channel_id)}, {"$set": update_data})
+                print(f"📝 Updated force sub channel: {channel_title} (ID: {channel_id})")
+            return True
+    except Exception as e:
+        print(f"Error adding force sub channel: {e}")
+        return False
+
+def remove_fsub_channel(channel_id):
+    """Remove force subscription channel"""
+    try:
+        result = fsub_channels.delete_one({"channel_id": str(channel_id)})
+        if result.deleted_count > 0:
+            print(f"🗑️ Removed force sub channel: {channel_id}")
+            return True
+        return False
+    except Exception as e:
+        print(f"Error removing force sub channel: {e}")
+        return False
+
+def get_all_fsub_channels():
+    """Get all force subscription channels"""
+    try:
+        channels = []
+        for doc in fsub_channels.find({}):
+            channels.append({
+                "channel_id": doc["channel_id"],
+                "channel_title": doc.get("channel_title", "Unknown"),
+                "invite_link": doc.get("invite_link"),
+                "channel_type": doc.get("channel_type", "private")
+            })
+        return channels
+    except Exception as e:
+        print(f"Error getting force sub channels: {e}")
+        return []
+
+def get_fsub_channel(channel_id):
+    """Get specific force subscription channel"""
+    try:
+        return fsub_channels.find_one({"channel_id": str(channel_id)})
+    except Exception as e:
+        print(f"Error getting force sub channel: {e}")
+        return None
