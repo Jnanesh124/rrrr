@@ -456,8 +456,11 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
 def start_user_bot():
     """Start the user bot"""
     try:
-        user_app.start()
-        print("User bot started successfully!")
+        if not user_app.is_connected:
+            user_app.start()
+            print("User bot started successfully!")
+        else:
+            print("User bot already connected!")
         return True
     except Exception as e:
         print(f"Failed to start user bot: {e}")
@@ -466,8 +469,11 @@ def start_user_bot():
 def stop_user_bot():
     """Stop the user bot"""
     try:
-        user_app.stop()
-        print("User bot stopped successfully!")
+        if user_app.is_connected:
+            user_app.stop()
+            print("User bot stopped successfully!")
+        else:
+            print("User bot was not connected!")
     except Exception as e:
         print(f"Error stopping user bot: {e}")
 

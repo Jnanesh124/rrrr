@@ -640,6 +640,12 @@ async def op(_, m: Message):
     print(f"🔄 Start command received from {user_name} (ID: {user_id})")
 
     try:
+        # Add user to database first
+        add_user(user_id)
+        
+        # Reset user state to IDLE when using /start - this ensures clean state
+        user_states[user_id] = UserState.IDLE
+
         # Check channel membership
         try:
             await app.get_chat_member(cfg.CHID, user_id)
@@ -652,11 +658,6 @@ async def op(_, m: Message):
 
         if member_status == "joined":
             if m.chat.type == enums.ChatType.PRIVATE:
-                add_user(user_id)
-                
-                # Reset user state to IDLE when using /start - this ensures clean state
-                user_states[user_id] = UserState.IDLE
-
                 # Simplified welcome message
                 welcome_text = f"""**🎉 Welcome {user_name} to Auto-Approve Bot!**
 
@@ -672,27 +673,19 @@ async def op(_, m: Message):
 
 **Ready to get started? Try `/pendingaccept` now!** 🚀"""
 
-                # Send simple text message first
-                try:
-                    await m.reply_text(welcome_text, disable_web_page_preview=True)
-                    print(f"✅ Start command responded to {user_name} (ID: {user_id})")
-                except Exception as send_err:
-                    print(f"❌ Failed to send start message: {send_err}")
-                    # Try minimal response
-                    await m.reply_text(f"✅ Hello {user_name}! Bot is working. Use /pendingaccept to start.")
+                await m.reply_text(welcome_text, disable_web_page_preview=True)
+                print(f"✅ Start command responded to {user_name} (ID: {user_id})")
 
             else:
                 # Group message - simplified
                 add_group(m.chat.id)
+                bot_me = await app.get_me()
                 await m.reply_text(
                     f"👋 Hello {user_name}! I'm an Auto-Approve Bot.\n"
-                    f"Start me privately: t.me/{(await app.get_me()).username}?start=welcome"
+                    f"Start me privately: t.me/{bot_me.username}?start=welcome"
                 )
 
         elif member_status == "not_joined":
-            # Reset user state even if not joined channel
-            user_states[user_id] = UserState.IDLE
-            
             key = InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔎 Check Again", callback_data="chk")],
                 [InlineKeyboardButton("📢 Join Channel", url=f"https://t.me/{cfg.FSUB}")]
@@ -705,8 +698,6 @@ async def op(_, m: Message):
             )
 
         else:
-            # Error case
-            user_states[user_id] = UserState.IDLE
             await m.reply_text(
                 f"⚠️ Hello {user_name}!\n"
                 f"Temporary issue. Try again.\n"
@@ -721,7 +712,7 @@ async def op(_, m: Message):
         
         print(f"❌ Error in start command for user {user_id}: {e}")
         try:
-            await m.reply_text(f"⚠️ Hello {user_name}! Bot is working but had an issue. Try /test command.")
+            await m.reply_text(f"⚠️ Hello {user_name}! Bot is working. Use /pendingaccept to start auto-approval.")
         except:
             print(f"❌ Could not send error message to {user_id}")
 
@@ -885,6 +876,10 @@ async def fcast(_, m: Message):
 async def startup_check():
     """Check bot startup and initialize properly"""
     try:
+        # Ensure bot is started
+        if not app.is_connected:
+            print("🔄 Starting main bot connection...")
+        
         # Get bot info to ensure connection
         me = await app.get_me()
         print(f"✅ Main bot connected as: {me.first_name} (@{me.username})")
@@ -896,7 +891,8 @@ async def startup_check():
 @app.on_message(filters.command("test"))
 async def test_command(_, m: Message):
     """Test command to check if bot is responding"""
-    await m.reply_text("✅ Bot is working! All commands should be functional now.")
+    user_states[m.from_user.id] = UserState.IDLE
+    await m.reply_text("✅ Bot is working! All commands should be functional now.\n\n🚀 Try /pendingaccept to start auto-approval!")
 
 if __name__ == "__main__":
     # Start user bot first
@@ -904,8 +900,8 @@ if __name__ == "__main__":
         print("✅ User bot started successfully!")
         try:
             print("🚀 Starting main bot...")
-            # Start bot and run it indefinitely
-            app.run(startup_check())
+            # Run startup check first, then run bot
+            app.run()
             print("✅ Main bot started successfully!")
         except Exception as e:
             print(f"❌ Error running main bot: {e}")
@@ -915,6 +911,7 @@ if __name__ == "__main__":
         print("❌ Failed to start user bot!")
         print("🚀 Starting main bot anyway...")
         try:
-            app.run(startup_check())  # Start main bot anyway
+            app.run()  # Start main bot anyway
+            print("✅ Main bot started successfully!")
         except Exception as e:
             print(f"❌ Error running main bot: {e}")
