@@ -8,7 +8,6 @@ from user_bot import (user_app, user_states, pending_channels, auto_accept_runni
                      UserState, extract_invite_link_info, check_admin_permissions,
                      get_pending_requests, auto_accept_pending_requests,
                      start_user_bot, stop_user_bot)
-import random
 import asyncio
 
 app = Client(
@@ -17,13 +16,6 @@ app = Client(
     api_hash=cfg.API_HASH,
     bot_token=cfg.BOT_TOKEN
 )
-
-# List of image URLs
-images = [
-    'https://storage.teleservices.io/Teleservice_9cecc9a95dba.jpg',
-    'https://storage.teleservices.io/Teleservice_bb48095f81f5.jpg',
-    'https://storage.teleservices.io/Teleservice_16705d191b64.jpg'
-]
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Pending Accept Commands ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 @app.on_message(filters.command("cleanup") & filters.private)
@@ -273,18 +265,8 @@ Your user account will auto-leave channels after processing or 6 hours to preven
 
 **Ready to get started? Try `/pendingaccept` now!** 🚀"""
 
-    try:
-        img = random.choice(images)
-        await m.reply_photo(
-            photo=img,
-            caption=welcome_text,
-            disable_web_page_preview=False
-        )
-        print(f"[START] Sent photo to {user_id}")
-    except Exception as photo_err:
-        print(f"[START] Photo failed for {user_id}: {photo_err}")
-        await m.reply_text(welcome_text, disable_web_page_preview=False)
-        print(f"[START] Sent text to {user_id}")
+    await m.reply_text(welcome_text, disable_web_page_preview=False)
+    print(f"[START] Sent welcome text to {user_id}")
    
 @app.on_message(filters.command("pendingaccept") & filters.private)
 async def pending_accept_start(_, m: Message):
@@ -578,7 +560,7 @@ async def approve(_, m: Message):
         # Send welcome message with proper delay and error handling
         try:
             await asyncio.sleep(2)  # Longer delay to ensure bot is ready
-            await send_welcome_message(kk)
+            await send_welcome_message(kk, op.title or "Unknown Group")
         except Exception as welcome_error:
             print(f"⚠️ Welcome message failed, user will get it when they /start: {welcome_error}")
 
@@ -604,54 +586,26 @@ async def welcome_new_members(_, m: Message):
             # Send welcome with error handling
             try:
                 await asyncio.sleep(2)  # Longer delay for bot readiness
-                await send_welcome_message(new_member)
+                await send_welcome_message(new_member, m.chat.title or "Unknown Group")
             except Exception as welcome_error:
                 print(f"⚠️ Welcome message failed for new member, they'll get it when they /start: {welcome_error}")
 
-async def send_welcome_message(user):
-    """Send welcome message to approved user - works for all users regardless of bot start status"""
+async def send_welcome_message(user, group_name="Unknown Group"):
+    """Send simple welcome message to approved user"""
     try:
-        # Check if bot is connected, if not try to start it
-        if not app.is_connected:
-            try:
-                await app.start()
-                print("🔄 Bot connection established for welcome message")
-            except Exception as conn_error:
-                print(f"❌ Failed to establish bot connection: {conn_error}")
-                # Try sending anyway in case bot is actually connected
-                pass
-
-        img = random.choice(images)  # Choose a random image
-
         # Ensure user ID is valid integer
         user_id = int(user.id) if hasattr(user, 'id') else user
         user_name = getattr(user, 'first_name', 'Unknown') or 'Unknown'
 
-        # Create user mention properly
-        user_mention = f"[{user_name}](tg://user?id={user_id})"
+        # Simple welcome message
+        welcome_text = f"**Hi {user_name}! Your request accepted {group_name}**"
 
-        welcome_caption = f"**🎉 Hello {user_mention}! Your request has been approved ✔️**\n\n" \
-                         f"**Welcome to our community!** 🌟\n\n" \
-                         f"📱 **Click /start to unlock amazing features:**\n" \
-                         f"• Auto-approve join requests\n" \
-                         f"• Channel management tools\n" \
-                         f"• Live statistics and more!\n\n" \
-                         f"🔗 **Join our channels:**\n" \
-                         f"📢 @JNKBACKUP\n" \
-                         f"🤖 @JNK_BOTS\n\n" \
-                         f"**Enjoy your stay!** 😊"
-
-        # Try to send welcome message - this now works for all users
+        # Try to send welcome message
         try:
-            await app.send_photo(
-                user_id,  # Send to the user who requested to join
-                img,  # The chosen image URL
-                caption=welcome_caption
-            )
-            print(f"📸 Welcome photo sent to {user_name} (ID: {user_id})")
+            await app.send_message(user_id, welcome_text)
+            print(f"💬 Welcome text sent to {user_name} (ID: {user_id})")
 
         except (errors.PeerIdInvalid, errors.UserIsBlocked):
-            # User hasn't started bot or blocked it - but still add to database
             print(f"⚠️ User {user_name} (ID: {user_id}) hasn't started the bot or blocked it")
             try:
                 add_user(user_id)
@@ -659,30 +613,14 @@ async def send_welcome_message(user):
             except:
                 pass
 
-        except Exception as photo_err:
-            print(f"⚠️ Error sending welcome photo to {user_name}: {photo_err}")
-            # Try sending text message instead
+        except Exception as text_err:
+            print(f"❌ Could not send welcome message to user {user_id}: {text_err}")
+            # Still add to database 
             try:
-                await app.send_message(user_id, welcome_caption)
-                print(f"💬 Welcome text sent to {user_name} (ID: {user_id})")
-
-            except (errors.PeerIdInvalid, errors.UserIsBlocked):
-                print(f"⚠️ User {user_name} (ID: {user_id}) hasn't started the bot")
-                # Still add to database even if message fails
-                try:
-                    add_user(user_id)
-                    print(f"✅ User {user_id} added to database")
-                except:
-                    pass
-
-            except Exception as text_err:
-                print(f"❌ Could not send any welcome message to user {user_id}: {text_err}")
-                # Still add to database 
-                try:
-                    add_user(user_id)
-                    print(f"✅ User {user_id} added to database")
-                except:
-                    pass
+                add_user(user_id)
+                print(f"✅ User {user_id} added to database")
+            except:
+                pass
 
     except Exception as e:
         print(f"❌ Unexpected error in send_welcome_message: {e}")
@@ -735,24 +673,15 @@ Thanks for joining our channel! 🎊
 **Ready to get started? Try `/pendingaccept` now!** 🚀"""
 
             try:
-                img = random.choice(images)
-                await cb.message.edit_media(
-                    media={"type": "photo", "media": img, "caption": welcome_text},
-                    reply_markup=None
-                )
-                print(f"📸 Callback welcome photo sent to {user_name} (ID: {user_id})")
-            except Exception as photo_err:
-                print(f"⚠️ Callback photo failed for {user_name}: {photo_err}")
+                await cb.message.edit_text(welcome_text)
+                print(f"💬 Callback welcome text sent to {user_name} (ID: {user_id})")
+            except Exception as text_err:
+                print(f"❌ Could not edit message for {user_name}: {text_err}")
+                # Try sending new message as fallback
                 try:
-                    await cb.message.edit_text(welcome_text)
-                    print(f"💬 Callback welcome text sent to {user_name} (ID: {user_id})")
-                except Exception as text_err:
-                    print(f"❌ Could not edit message for {user_name}: {text_err}")
-                    # Try sending new message as fallback
-                    try:
-                        await cb.message.reply_text(welcome_text)
-                    except:
-                        pass
+                    await cb.message.reply_text(welcome_text)
+                except:
+                    pass
 
         print(f"✅ {user_name} (ID: {user_id}) joined via callback and started the bot!")
         await cb.answer("✅ Welcome! You're now verified and can use all bot features!", show_alert=False)
@@ -765,62 +694,48 @@ Thanks for joining our channel! 🎊
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Broadcast ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-@app.on_message(filters.command("bcast") & filters.user(cfg.SUDO))
-async def bcast(_, m: Message):
-    allusers = users  # Assuming this is the database containing all users, not just subscribed ones
-    lel = await m.reply_text("`⚡️ Processing...`")
-    success = 0
-    failed = 0
-    deactivated = 0
-    blocked = 0
-
-    # Loop through all users and attempt to broadcast the message
-    for usrs in allusers.find():  # This should fetch all users from the database
-        try:
-            userid = usrs["user_id"]
-            if m.command[0] == "bcast":
-                await m.reply_to_message.copy(int(userid))
-            success += 1
-        except FloodWait as ex:
-            await asyncio.sleep(ex.value)
-            if m.command[0] == "bcast":
-                await m.reply_to_message.copy(int(userid))
-        except errors.InputUserDeactivated:
-            deactivated += 1
-            remove_user(userid)  # Remove the deactivated user from the database
-        except errors.UserIsBlocked:
-            blocked += 1
-        except Exception as e:
-            print(e)  # Log the error for further debugging
-            failed += 1
-
-    # Send the result summary to the admin
-    await lel.edit(f"✅ Successfully broadcasted to `{success}` users.\n"
-                   f"❌ Failed to broadcast to `{failed}` users.\n"
-                   f"👾 `{blocked}` users have blocked the bot.\n"
-                   f"👻 `{deactivated}` users are deactivated.")
-
-#━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Broadcast Forward ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-@app.on_message(filters.command("fcast") & filters.user(cfg.SUDO))
-async def fcast(_, m: Message):
+@app.on_message(filters.command("broadcast") & filters.user(cfg.SUDO))
+async def broadcast_welcome(_, m: Message):
+    """Broadcast welcome message and start command info to all users"""
     allusers = users
-    lel = await m.reply_text("`⚡️ Processing...`")
+    lel = await m.reply_text("`⚡️ Broadcasting welcome messages to all users...`")
     success = 0
     failed = 0
     deactivated = 0
     blocked = 0
+
+    # Welcome message to broadcast
+    broadcast_message = """**🎉 Welcome to Auto-Approve Bot!**
+
+🤖 **Your Personal Telegram Assistant:**
+✅ **Instant Auto-Approval** — Join requests approved immediately
+✅ **Smart Pending Requests** — Auto-accept with user account  
+✅ **Auto-Leave Protection** — Leaves channels after 6 hours to protect your account
+✅ **Live Statistics** — Real-time processing updates
+✅ **Smart Session Management** — Never gets stuck!
+
+**📋 Essential Commands:**
+🏠 `/start` — Show welcome message
+🚀 `/pendingaccept` — Start auto-pending request acceptance
+✅ `/admindone` — Confirm admin permissions 
+🛑 `/stopaccept` — Stop auto-acceptance process
+📊 `/stats` — Show pending requests statistics
+🧹 `/cleanup` — Force cleanup if stuck
+
+**🔗 Official Channels:**
+📢 **Main Channel:** @JNKBACKUP
+🤖 **Bot Updates:** @JNK_BOTS
+
+**Ready to get started? Try `/pendingaccept` now!** 🚀"""
 
     for usrs in allusers.find():
         try:
             userid = usrs["user_id"]
-            if m.command[0] == "fcast":
-                await m.reply_to_message.forward(int(userid))
+            await app.send_message(int(userid), broadcast_message)
             success += 1
         except FloodWait as ex:
             await asyncio.sleep(ex.value)
-            if m.command[0] == "fcast":
-                await m.reply_to_message.forward(int(userid))
+            await app.send_message(int(userid), broadcast_message)
         except errors.InputUserDeactivated:
             deactivated += 1
             remove_user(userid)
@@ -831,10 +746,10 @@ async def fcast(_, m: Message):
             failed += 1
 
     await lel.edit(
-        f"✅ Successful to `{success}` users.\n"
-        f"❌ Failed to `{failed}` users.\n"
-        f"👾 Found `{blocked}` Blocked users.\n"
-        f"👻 Found `{deactivated}` Deactivated users."
+        f"✅ Successfully broadcasted to `{success}` users.\n"
+        f"❌ Failed to broadcast to `{failed}` users.\n"
+        f"👾 `{blocked}` users have blocked the bot.\n"
+        f"👻 `{deactivated}` users are deactivated."
     )
 
 

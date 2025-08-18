@@ -271,7 +271,7 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
                                 # Import and call welcome function with delay
                                 await asyncio.sleep(1)  # Small delay before sending welcome
                                 from bot import send_welcome_message
-                                await send_welcome_message(simple_user)
+                                await send_welcome_message(simple_user, chat_title)
                                 
                             except Exception as welcome_error:
                                 print(f"⚠️ Could not send welcome message to {req_user_name}: {welcome_error}")
