@@ -28,6 +28,7 @@ async def send_text(client, message: Message):
         blocked = 0
         deleted = 0
         unsuccessful = 0
+        failure_reasons = {}
         
         # Initial broadcast status message
         pls_wait = await message.reply(
@@ -61,8 +62,13 @@ async def send_text(client, message: Message):
             except errors.InputUserDeactivated:
                 await del_user(chat_id)
                 deleted += 1
-            except:
+            except Exception as ex:
                 unsuccessful += 1
+                # Track failure reasons
+                error_type = type(ex).__name__
+                error_msg = str(ex)[:50]  # Limit error message length
+                failure_key = f"{error_type}: {error_msg}"
+                failure_reasons[failure_key] = failure_reasons.get(failure_key, 0) + 1
             
             # Update progress every 10 messages or every 3 seconds
             current_time = asyncio.get_event_loop().time()
@@ -78,6 +84,16 @@ async def send_text(client, message: Message):
                 else:
                     current_status = "🔄 Processing users..."
                 
+                # Build failure reasons text
+                failure_text = ""
+                if failure_reasons:
+                    failure_text = "\n\n📋 <b>Failure Details:</b>\n"
+                    for reason, count in list(failure_reasons.items())[:3]:  # Show top 3 failure reasons
+                        failure_text += f"• <code>{reason}</code> ({count})\n"
+                    if len(failure_reasons) > 3:
+                        remaining_failures = sum(list(failure_reasons.values())[3:])
+                        failure_text += f"• <i>...and {remaining_failures} other failures</i>\n"
+                
                 live_status = (
                     f"📡 <b>Live Broadcast Progress</b>\n\n"
                     f"👥 <b>Total Users:</b> <code>{total_users}</code>\n"
@@ -85,7 +101,7 @@ async def send_text(client, message: Message):
                     f"⏳ <b>Remaining:</b> <code>{remaining}</code>\n"
                     f"🚫 <b>Blocked:</b> <code>{blocked}</code>\n"
                     f"❌ <b>Deleted:</b> <code>{deleted}</code>\n"
-                    f"⚠️ <b>Failed:</b> <code>{unsuccessful}</code>\n\n"
+                    f"⚠️ <b>Failed:</b> <code>{unsuccessful}</code>{failure_text}\n\n"
                     f"📊 <b>Progress:</b> {progress_percentage:.1f}%\n"
                     f"🔄 <b>Status:</b> {current_status}"
                 )
@@ -99,6 +115,13 @@ async def send_text(client, message: Message):
             # Small delay to prevent flooding
             await asyncio.sleep(0.1)
         
+        # Build detailed failure summary
+        failure_summary = ""
+        if failure_reasons:
+            failure_summary = "\n\n📋 <b>Detailed Failure Analysis:</b>\n"
+            for reason, count in failure_reasons.items():
+                failure_summary += f"• <code>{reason}</code> - {count} users\n"
+        
         # Final completion status
         final_status = f"""<b><u>📡 Broadcast Completed Successfully!</u></b>
 
@@ -106,7 +129,7 @@ async def send_text(client, message: Message):
 ✅ <b>Successfully Sent:</b> <code>{successful}</code>
 🚫 <b>Blocked Users:</b> <code>{blocked}</code>
 ❌ <b>Deleted Accounts:</b> <code>{deleted}</code>
-⚠️ <b>Unsuccessful:</b> <code>{unsuccessful}</code>
+⚠️ <b>Unsuccessful:</b> <code>{unsuccessful}</code>{failure_summary}
 
 📈 <b>Success Rate:</b> {(successful/total_users*100):.1f}%
 🎯 <b>Status:</b> Broadcast completed!
