@@ -593,8 +593,7 @@ async def pending_accept_start(_, m: Message):
         
         # Create check again button
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Check Again", callback_data="check_fsub")],
-            [InlineKeyboardButton("🆘 Support", url="https://t.me/JNK_BOTS")]
+            [InlineKeyboardButton("✅ Check Again", callback_data="check_fsub")]
         ])
         
         await m.reply_text(fsub_message, reply_markup=keyboard, disable_web_page_preview=True)
@@ -760,8 +759,7 @@ async def check_fsub_callback(_, cb: CallbackQuery):
         fsub_message = await generate_fsub_message(user_name, not_joined)
         
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ Check Again", callback_data="check_fsub")],
-            [InlineKeyboardButton("🆘 Support", url="https://t.me/JNK_BOTS")]
+            [InlineKeyboardButton("✅ Check Again", callback_data="check_fsub")]
         ])
         
         await cb.answer("❌ You're still not a member of all channels!", show_alert=True)
@@ -1133,26 +1131,34 @@ async def generate_fsub_message(user_name, not_joined_channels):
             
             if invite_link:
                 # Use provided invite link
-                message += f"{i}. **[{channel_title}]({invite_link})**\n"
+                message += f"{i}. **{channel_title}** - [{invite_link}]({invite_link})\n"
             elif not channel_id.startswith("-") and not channel_id.isdigit():
                 # Public channel - create t.me link
                 username = channel_id.replace("@", "")
-                message += f"{i}. **[{channel_title}](https://t.me/{username})**\n"
+                message += f"{i}. **@{username}** - [https://t.me/{username}](https://t.me/{username})\n"
             else:
-                # Private channel without invite link
+                # Private channel without invite link - try to generate one
                 try:
-                    # Try to get chat info and generate invite link
-                    chat = await app.get_chat(int(channel_id))
+                    # Convert to int for private channels
+                    chat_id_int = int(channel_id)
+                    
                     # Try to create invite link if bot is admin
                     try:
-                        invite = await app.create_chat_invite_link(int(channel_id))
-                        message += f"{i}. **[{channel_title}]({invite.invite_link})**\n"
+                        invite = await app.create_chat_invite_link(chat_id_int)
+                        generated_link = invite.invite_link
+                        message += f"{i}. **{channel_title}** - [{generated_link}]({generated_link})\n"
+                        
                         # Update database with new invite link
                         from database import add_fsub_channel
-                        add_fsub_channel(channel_id, channel_title, invite.invite_link, "private")
-                    except:
+                        add_fsub_channel(channel_id, channel_title, generated_link, "private")
+                        print(f"✅ Generated invite link for {channel_title}: {generated_link}")
+                        
+                    except Exception as link_err:
+                        print(f"❌ Failed to generate invite link for {channel_title}: {link_err}")
                         message += f"{i}. **{channel_title}** (Contact admin for invite)\n"
-                except:
+                        
+                except Exception as conv_err:
+                    print(f"❌ Invalid channel ID format {channel_id}: {conv_err}")
                     message += f"{i}. **{channel_title}** (Contact admin for invite)\n"
         
         message += "\n**📋 Instructions:**\n"
