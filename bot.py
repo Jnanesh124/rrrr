@@ -304,14 +304,36 @@ async def handle_admin_done(user_id, message, callback=None):
 @app.on_message(filters.command("stopaccept") & filters.private)
 async def stop_accept(_, m: Message):
     user_id = m.from_user.id
+    user_name = m.from_user.first_name or "User"
 
-    if user_id not in auto_accept_running or not any(auto_accept_running[user_id].values()):
-        await m.reply_text("❌ **No active auto-accept process found!**")
+    # Check if there are any active processes
+    has_active_process = False
+    stopped_channels = []
+
+    if user_id in auto_accept_running:
+        for chat_id, is_running in auto_accept_running[user_id].items():
+            if is_running:
+                has_active_process = True
+                # Get channel name if available
+                channel_name = "Unknown Channel"
+                if user_id in pending_channels and pending_channels[user_id].get('chat_id') == chat_id:
+                    channel_name = pending_channels[user_id].get('chat_title', 'Unknown Channel')
+                stopped_channels.append(channel_name)
+                
+                # Stop the process
+                auto_accept_running[user_id][chat_id] = False
+
+    if not has_active_process:
+        await m.reply_text(
+            f"❌ **No active auto-accept process found!**\n\n"
+            f"👋 **Hi {user_name}!**\n\n"
+            f"💡 **Available commands:**\n"
+            f"🚀 `/pendingaccept` - Start auto-pending request acceptance\n"
+            f"📊 `/stats` - Show statistics\n"
+            f"🏠 `/start` - Show welcome message\n"
+            f"🧹 `/cleanup` - Force cleanup if stuck"
+        )
         return
-
-    # Stop all auto-accept processes for this user and clean up
-    for chat_id in auto_accept_running[user_id]:
-        auto_accept_running[user_id][chat_id] = False
 
     # Comprehensive cleanup
     if user_id in auto_accept_running:
@@ -319,9 +341,30 @@ async def stop_accept(_, m: Message):
     if user_id in pending_channels:
         del pending_channels[user_id]
 
+    # Reset user state to IDLE
     user_states[user_id] = UserState.IDLE
 
-    await m.reply_text("✅ **Auto-accept process stopped successfully!**\n\n📝 **Session cleared** - You can start fresh with /pendingaccept")
+    # Create detailed success message
+    success_text = f"✅ **Auto-accept process stopped successfully!**\n\n"
+    success_text += f"👋 **Hi {user_name}!**\n\n"
+    
+    if stopped_channels:
+        if len(stopped_channels) == 1:
+            success_text += f"🛑 **Stopped processing:** {stopped_channels[0]}\n\n"
+        else:
+            success_text += f"🛑 **Stopped processing {len(stopped_channels)} channels:**\n"
+            for channel in stopped_channels:
+                success_text += f"   • {channel}\n"
+            success_text += "\n"
+    
+    success_text += f"📝 **Session cleared** - All data has been reset\n\n"
+    success_text += f"💡 **What's next?**\n"
+    success_text += f"🚀 Use `/pendingaccept` to start fresh with a new channel\n"
+    success_text += f"📊 Use `/stats` to check current status\n"
+    success_text += f"🏠 Use `/start` to see the welcome message\n\n"
+    success_text += f"🔄 **Ready to start again anytime!**"
+
+    await m.reply_text(success_text)
 
 @app.on_message(filters.command("cleanup") & filters.private)
 async def force_cleanup(_, m: Message):
@@ -587,6 +630,8 @@ async def op(_, m: Message):
 
         if m.chat.type == enums.ChatType.PRIVATE:
             add_user(user_id)
+            
+            # Reset user state to IDLE when using /start - this ensures clean state
             user_states[user_id] = UserState.IDLE
 
             # Always send full welcome message to all users (whether new or returning)
@@ -662,6 +707,9 @@ Your user account will auto-leave channels after processing or 6 hours to preven
         print(f"✅ {user_name} (ID: {user_id}) started the bot!")
 
     except UserNotParticipant:
+        # Reset user state even if not joined channel
+        user_states[user_id] = UserState.IDLE
+        
         key = InlineKeyboardMarkup([
             [InlineKeyboardButton("🔎 Check Again 🚀", callback_data="chk")],
             [InlineKeyboardButton("📢 Join Channel", url=f"https://t.me/{cfg.FSUB}")]
@@ -676,6 +724,9 @@ Your user account will auto-leave channels after processing or 6 hours to preven
         )
 
     except Exception as e:
+        # Reset user state even on error
+        user_states[user_id] = UserState.IDLE
+        
         print(f"❌ Error in start command for user {user_id}: {e}")
         await m.reply_text(
             f"**⚠️ Hello {user_name}!**\n\n"
@@ -688,14 +739,17 @@ Your user account will auto-leave channels after processing or 6 hours to preven
 
 @app.on_callback_query(filters.regex("chk"))
 async def chk(_, cb : CallbackQuery):
+    user_id = cb.from_user.id
+    user_name = cb.from_user.first_name or "there"
+    
     try:
-        await app.get_chat_member(cfg.CHID, cb.from_user.id)
+        await app.get_chat_member(cfg.CHID, user_id)
         if cb.message.chat.type == enums.ChatType.PRIVATE:
-            add_user(cb.from_user.id)
-            user_states[cb.from_user.id] = UserState.IDLE
+            add_user(user_id)
+            # Reset user state to IDLE when user joins via callback
+            user_states[user_id] = UserState.IDLE
 
             # Send full welcome message when user joins
-            user_name = cb.from_user.first_name or "there"
             welcome_text = f"""**🎉 Welcome {user_name} to Auto-Approve Bot!**
 
 Thanks for joining our channel! 🎊
@@ -727,13 +781,28 @@ Thanks for joining our channel! 🎊
                     media={"type": "photo", "media": img, "caption": welcome_text},
                     reply_markup=None
                 )
-            except:
-                await cb.message.edit_text(welcome_text)
+                print(f"📸 Callback welcome photo sent to {user_name} (ID: {user_id})")
+            except Exception as photo_err:
+                print(f"⚠️ Callback photo failed for {user_name}: {photo_err}")
+                try:
+                    await cb.message.edit_text(welcome_text)
+                    print(f"💬 Callback welcome text sent to {user_name} (ID: {user_id})")
+                except Exception as text_err:
+                    print(f"❌ Could not edit message for {user_name}: {text_err}")
+                    # Try sending new message as fallback
+                    try:
+                        await cb.message.reply_text(welcome_text)
+                    except:
+                        pass
 
-        print(cb.from_user.first_name + " joined via callback and started the bot!")
+        print(f"✅ {user_name} (ID: {user_id}) joined via callback and started the bot!")
         await cb.answer("✅ Welcome! You're now verified and can use all bot features!", show_alert=False)
+        
     except UserNotParticipant:
         await cb.answer("🙅‍♂️ You are not joined to channel, join and try again. 🙅‍♂️", show_alert=True)
+    except Exception as e:
+        print(f"❌ Error in callback for user {user_id}: {e}")
+        await cb.answer("⚠️ Something went wrong. Please try /start command.", show_alert=True)
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ info ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
