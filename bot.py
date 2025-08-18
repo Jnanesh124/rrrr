@@ -632,7 +632,7 @@ async def send_welcome_message(user):
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Start ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-@app.on_message(filters.command("start"))
+@app.on_message(filters.command("start") & filters.private)
 async def op(_, m: Message):
     user_id = m.from_user.id
     user_name = m.from_user.first_name or "there"
@@ -657,9 +657,8 @@ async def op(_, m: Message):
             member_status = "error"
 
         if member_status == "joined":
-            if m.chat.type == enums.ChatType.PRIVATE:
-                # Simplified welcome message
-                welcome_text = f"""**🎉 Welcome {user_name} to Auto-Approve Bot!**
+            # Simplified welcome message
+            welcome_text = f"""**🎉 Welcome {user_name} to Auto-Approve Bot!**
 
 🤖 **Essential Commands:**
 🏠 `/start` - Show this message
@@ -673,17 +672,8 @@ async def op(_, m: Message):
 
 **Ready to get started? Try `/pendingaccept` now!** 🚀"""
 
-                await m.reply_text(welcome_text, disable_web_page_preview=True)
-                print(f"✅ Start command responded to {user_name} (ID: {user_id})")
-
-            else:
-                # Group message - simplified
-                add_group(m.chat.id)
-                bot_me = await app.get_me()
-                await m.reply_text(
-                    f"👋 Hello {user_name}! I'm an Auto-Approve Bot.\n"
-                    f"Start me privately: t.me/{bot_me.username}?start=welcome"
-                )
+            await m.reply_text(welcome_text, disable_web_page_preview=True)
+            print(f"✅ Start command responded to {user_name} (ID: {user_id})")
 
         elif member_status == "not_joined":
             key = InlineKeyboardMarkup([
@@ -715,6 +705,17 @@ async def op(_, m: Message):
             await m.reply_text(f"⚠️ Hello {user_name}! Bot is working. Use /pendingaccept to start auto-approval.")
         except:
             print(f"❌ Could not send error message to {user_id}")
+
+# Handle start command in groups
+@app.on_message(filters.command("start") & (filters.group | filters.supergroup))
+async def start_group(_, m: Message):
+    user_name = m.from_user.first_name or "User"
+    add_group(m.chat.id)
+    bot_me = await app.get_me()
+    await m.reply_text(
+        f"👋 Hello {user_name}! I'm an Auto-Approve Bot.\n"
+        f"Start me privately: t.me/{bot_me.username}?start=welcome"
+    )
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ callback ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
