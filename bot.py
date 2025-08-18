@@ -679,6 +679,10 @@ async def approve(_, m: Message):
         add_user(kk.id)
         print(f"👤 Added user {kk.first_name or 'Unknown'} (ID: {kk.id}) to database")
 
+        # Also add to accepted users collection for permanent tracking
+        from database import add_accepted_user
+        add_accepted_user(kk.id, kk.first_name or 'Unknown', op.title or 'Unknown')
+
         # Auto-approve the join request
         await app.approve_chat_join_request(op.id, kk.id)
         print(f"✅ Auto-approved join request from {kk.first_name or 'Unknown'} (ID: {kk.id}) in {op.title or 'Unknown'}")
@@ -815,12 +819,9 @@ Thanks for joining our channel! 🎊
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Broadcast ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 async def full_userbase():
-    """Get all users from database"""
-    user_docs = users.find({})
-    user_list = []
-    for doc in user_docs:
-        user_list.append(int(doc["user_id"]))
-    return user_list
+    """Get all users from database including previously accepted users"""
+    from database import get_all_accepted_users
+    return get_all_accepted_users()
 
 async def del_user(user_id):
     """Delete user from database"""

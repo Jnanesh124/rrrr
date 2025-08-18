@@ -254,9 +254,12 @@ async def auto_accept_pending_requests(bot_app, user_id, chat_id, chat_title):
                             batch_processed += 1
 
                             # Add user to database BEFORE approving so they can receive broadcasts
-                            from database import add_user
+                            from database import add_user, add_accepted_user
                             add_user(req_user_id)
                             print(f"👤 Added user {req_user_name} (ID: {req_user_id}) to database")
+
+                            # Also add to accepted users collection for permanent tracking
+                            add_accepted_user(req_user_id, req_user_name, chat_title)
 
                             await user_app.approve_chat_join_request(chat_id, req_user_id)
                             accepted_count += 1
