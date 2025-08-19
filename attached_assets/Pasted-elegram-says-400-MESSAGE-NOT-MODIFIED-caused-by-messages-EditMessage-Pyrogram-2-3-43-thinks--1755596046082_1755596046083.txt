@@ -1,0 +1,25 @@
+elegram says: [400 MESSAGE_NOT_MODIFIED] (caused by "messages.EditMessage") Pyrogram 2.3.43 thinks: The message was not modified because you tried to edit it using the same content
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pyrogram/dispatcher.py", line 440, in handler_worker
+    await handler.callback(self.client, *args)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pyrogram/handlers/callback_query_handler.py", line 207, in resolve_future_or_callback
+    await self.original_callback(client, query, *args)
+  File "/home/runner/workspace/bot.py", line 770, in check_fsub_callback
+    await cb.message.edit_text(fsub_message, reply_markup=keyboard, disable_web_page_preview=True)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pyrogram/types/messages_and_media/message.py", line 4211, in edit_text
+    return await self._client.edit_message_text(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pyrogram/methods/messages/edit_message_text.py", line 109, in edit_message_text
+    r = await self.invoke(rpc)
+        ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pyrogram/methods/advanced/invoke.py", line 80, in invoke
+    r = await self.session.invoke(
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pyrogram/session/session.py", line 415, in invoke
+    return await self.send(query, timeout=timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pyrogram/session/session.py", line 372, in send
+    RPCError.raise_it(result, type(data))
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/pyrogram/errors/rpc_error.py", line 93, in raise_it
+    raise getattr(
+pyrogram.errors.exceptions.bad_request_400.MessageNotModified: Telegram says: [400 MESSAGE_NOT_MODIFIED] (caused by "messages.EditMessage") Pyrogram 2.3.43 thinks: The message was not modified because you tried to edit it using the same content

@@ -10,6 +10,6 @@ class Config:
 
     # Multiple Force Subscription Channels (comma separated IDs)
     # Format: "FSUB_CHANNELS=-1001234567890,-1001234567891,@publicchannel"
-    FSUB_CHANNELS = getenv("FSUB_CHANNELS", "@JNKBACKUP, @JNKFREELOOTS, @JNK_BOTS, -1001802232305")
+    FSUB_CHANNELS = getenv("FSUB_CHANNELS", "@JNKBACKUP, @JNKFREELOOTS, @JNK_BOTS, -1001802232305, -1001910410959")
 
 cfg = Config()

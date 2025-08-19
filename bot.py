@@ -1,8 +1,7 @@
 from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
-from pyrogram import filters, Client, errors, enums
-from pyrogram.errors import UserNotParticipant
+from pyrogram import filters, Client, errors
 from pyrogram.errors.exceptions.flood_420 import FloodWait
-from database import add_user, add_group, all_users, all_groups, users, remove_user, get_all_fsub_channels, get_fsub_channel
+from database import add_user, add_group, all_users, all_groups, remove_user, get_all_fsub_channels
 from configs import cfg
 from user_bot import (user_app, user_states, pending_channels, auto_accept_running,
                      UserState, extract_invite_link_info, check_admin_permissions,
@@ -341,7 +340,7 @@ async def send_text(client, message: Message):
         msg = await message.reply("❌ **Reply to a message to broadcast it to all users.**")
         await asyncio.sleep(8)
         await msg.delete()
-
+    
 @app.on_message(filters.command("cleanup") & filters.private)
 async def force_cleanup(_, m: Message):
     """Force cleanup user session if stuck"""
@@ -556,11 +555,20 @@ async def start_command(_, m: Message):
     welcome_text = f"""**🎉 Welcome {user_name} to Auto-Approve Bot!**
 
 🤖 **Your Personal Telegram Assistant:**
-✅ **Instant Auto-Approval** — Join requests approved immediately
-✅ **Smart Pending Requests** — Auto-accept with user account  
-✅ **Auto-Leave Protection** — Leaves channels after 6 hours to protect your account
-✅ **Live Statistics** — Real-time processing updates
-✅ **Smart Session Management** — Never gets stuck!
+
+✅ **Instant Auto-Approval** 
+
+just add me in ur private channel are group i will auto accepet new user requist ✅ 
+
+✅ **Smart Pending Requests** 
+
+1, first add this bot @autorequistacceptnewbot in ur pendingrequist channel are group 
+2, than click /pendingaccept in this bot 
+3, after send ur channel direct join invite link 
+4, after add this user @pendingrequistaccepetuser as admin with full permission 
+5, than click admin done button 
+
+after bot will auto accepet all pending requist memeber also after accepet done  user account @pendingrequistaccepetuser  will auto leave from ur channel so don't worry 👍
 
 **📋 Essential Commands:**
 🏠 `/start` — Show this welcome message
@@ -568,26 +576,7 @@ async def start_command(_, m: Message):
 ✅ `/admindone` — Confirm admin permissions 
 🛑 `/stopaccept` — Stop auto-acceptance process
 📊 `/stats` — Show pending requests statistics
-🧹 `/cleanup` — Force cleanup if stuck
-
-**🔗 Official Channels:**
-📢 **Main Channel:** @JNKBACKUP
-🤖 **Bot Updates:** @JNK_BOTS
-
-**🚀 Quick Start Guide:**
-1️⃣ Use `/pendingaccept` command
-2️⃣ Send your channel/group invite link  
-3️⃣ Give me admin permissions with "Add Members" right
-4️⃣ Click `/admindone` to start the magic! ✨
-5️⃣ Watch as all pending requests get approved automatically!
-
-**🔄 Pro Tip:** 
-User account automatically rejoins when you use `/pendingaccept` again — no manual setup needed!
-
-**🛡️ Account Protection:**
-Your user account will auto-leave channels after processing or 6 hours to prevent Telegram limitations.
-
-**Ready to get started? Try `/pendingaccept` now!** 🚀"""
+🧹 `/cleanup` — Force cleanup if stuck 🚀"""
 
     await m.reply_text(welcome_text, disable_web_page_preview=False)
     print(f"[START] Sent welcome text to {user_id}")
@@ -1264,7 +1253,7 @@ async def initialize_fsub_channels():
             except Exception as e:
                 print(f"❌ Error initializing channel {channel}: {e}")
 
-        print(f"✅ Force subscription initialization completed")
+        print("✅ Force subscription initialization completed")
 
     except Exception as e:
         print(f"❌ Error initializing force sub channels: {e}")
