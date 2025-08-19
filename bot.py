@@ -767,7 +767,15 @@ async def check_fsub_callback(_, cb: CallbackQuery):
         ])
 
         await cb.answer("❌ You're still not a member of all channels!", show_alert=True)
-        await cb.message.edit_text(fsub_message, reply_markup=keyboard, disable_web_page_preview=True)
+        
+        # Check if the message content would be different before editing
+        current_text = cb.message.text or ""
+        if current_text != fsub_message:
+            try:
+                await cb.message.edit_text(fsub_message, reply_markup=keyboard, disable_web_page_preview=True)
+            except Exception as e:
+                # If edit fails, just log it and continue
+                print(f"⚠️ Could not edit message: {e}")
         return
 
     # User is now a member of all channels
@@ -781,7 +789,12 @@ async def check_fsub_callback(_, cb: CallbackQuery):
                      "• `/stopaccept` - Stop auto-acceptance process\n\n" \
                      "💡 **Next step:** Use `/pendingaccept` to start!"
 
-    await cb.message.edit_text(success_message)
+    try:
+        await cb.message.edit_text(success_message)
+    except Exception as e:
+        # If edit fails, send a new message instead
+        print(f"⚠️ Could not edit message: {e}")
+        await cb.message.reply_text(success_message)
 
 async def handle_admin_done(user_id, message, callback=None):
     if user_states.get(user_id) != UserState.WAITING_FOR_ADMIN_CONFIRMATION:
