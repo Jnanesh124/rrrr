@@ -1,7 +1,6 @@
 pyrofork==2.3.43
-TgCrypto
+TgCrypto>=1.2.5
 pymongo[srv]
 aiohttp
 Flask
 gunicorn
-pyrogram
