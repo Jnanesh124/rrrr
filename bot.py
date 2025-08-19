@@ -1009,63 +1009,7 @@ async def send_welcome_message(user, group_name="Unknown Group"):
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ callback ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-@app.on_callback_query(filters.regex("chk"))
-async def chk(_, cb : CallbackQuery):
-    user_id = cb.from_user.id
-    user_name = cb.from_user.first_name or "there"
-
-    try:
-        await app.get_chat_member(cfg.CHID, user_id)
-        if cb.message.chat.type == enums.ChatType.PRIVATE:
-            add_user(user_id)
-            # Reset user state to IDLE when user joins via callback
-            user_states[user_id] = UserState.IDLE
-
-            # Send full welcome message when user joins
-            welcome_text = f"""**🎉 Welcome {user_name} to Auto-Approve Bot!**
-
-Thanks for joining our channel! 🎊
-
-🤖 **Your Personal Telegram Assistant:**
-✅ **Instant Auto-Approval** - Join requests approved immediately
-✅ **Smart Pending Requests** - Auto-accept with user account  
-✅ **Auto-Leave Protection** - Leaves channels after 6 hours to protect your account
-✅ **Live Statistics** - Real-time processing updates
-✅ **Smart Session Management** - Never gets stuck!
-
-**📋 Essential Commands:**
-🏠 `/start` - Show this welcome message
-🚀 `/pendingaccept` - Start auto-pending request acceptance
-✅ `/admindone` - Confirm admin permissions 
-🛑 `/stopaccept` - Stop auto-acceptance process
-📊 `/stats` - Show pending requests statistics
-🧹 `/cleanup` - Force cleanup if stuck
-
-**🔗 Official Channels:**
-📢 **Main Channel:** @JNKBACKUP
-🤖 **Bot Updates:** @JNK_BOTS
-
-**Ready to get started? Try `/pendingaccept` now!** 🚀"""
-
-            try:
-                await cb.message.edit_text(welcome_text)
-                print(f"💬 Callback welcome text sent to {user_name} (ID: {user_id})")
-            except Exception as text_err:
-                print(f"❌ Could not edit message for {user_name}: {text_err}")
-                # Try sending new message as fallback
-                try:
-                    await cb.message.reply_text(welcome_text)
-                except:
-                    pass
-
-        print(f"✅ {user_name} (ID: {user_id}) joined via callback and started the bot!")
-        await cb.answer("✅ Welcome! You're now verified and can use all bot features!", show_alert=False)
-
-    except UserNotParticipant:
-        await cb.answer("🙅‍♂️ You are not joined to channel, join and try again. 🙅‍♂️", show_alert=True)
-    except Exception as e:
-        print(f"❌ Error in callback for user {user_id}: {e}")
-        await cb.answer("⚠️ Something went wrong. Please try /start command.", show_alert=True)
+# Old CHID callback removed - now using FSUB_CHANNELS only
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Broadcast ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -1132,7 +1076,7 @@ async def check_user_membership(user_id):
         return False, []
 
 async def generate_fsub_message(user_name, not_joined_channels):
-    """Generate force subscription message with invite links"""
+    """Generate force subscription message with direct invite links only"""
     try:
         if not not_joined_channels:
             return None
@@ -1141,17 +1085,16 @@ async def generate_fsub_message(user_name, not_joined_channels):
         message += "To use `/pendingaccept` command, you must join all our channels first:\n\n"
 
         for i, channel in enumerate(not_joined_channels, 1):
-            channel_title = channel["channel_title"]
             channel_id = channel["channel_id"]
             invite_link = channel.get("invite_link")
 
             if invite_link:
-                # Use provided invite link
-                message += f"{i}. **{channel_title}** - [{invite_link}]({invite_link})\n"
+                # Use provided invite link - direct link only
+                message += f"{i}. {invite_link}\n"
             elif not channel_id.startswith("-") and not channel_id.isdigit():
                 # Public channel - create t.me link
                 username = channel_id.replace("@", "")
-                message += f"{i}. **@{username}** - [https://t.me/{username}](https://t.me/{username})\n"
+                message += f"{i}. https://t.me/{username}\n"
             else:
                 # Private channel without invite link - try to generate one
                 try:
@@ -1162,24 +1105,24 @@ async def generate_fsub_message(user_name, not_joined_channels):
                     try:
                         invite = await app.create_chat_invite_link(chat_id_int)
                         generated_link = invite.invite_link
-                        message += f"{i}. **{channel_title}** - [{generated_link}]({generated_link})\n"
+                        message += f"{i}. {generated_link}\n"
 
                         # Update database with new invite link
                         from database import add_fsub_channel
-                        add_fsub_channel(channel_id, channel_title, generated_link, "private")
-                        print(f"✅ Generated invite link for {channel_title}: {generated_link}")
+                        add_fsub_channel(channel_id, channel.get("channel_title"), generated_link, "private")
+                        print(f"✅ Generated invite link for channel {channel_id}: {generated_link}")
 
                     except Exception as link_err:
-                        print(f"❌ Failed to generate invite link for {channel_title}: {link_err}")
-                        message += f"{i}. **{channel_title}** (Contact admin for invite)\n"
+                        print(f"❌ Failed to generate invite link for channel {channel_id}: {link_err}")
+                        message += f"{i}. Contact admin for invite link\n"
 
                 except Exception as conv_err:
                     print(f"❌ Invalid channel ID format {channel_id}: {conv_err}")
-                    message += f"{i}. **{channel_title}** (Contact admin for invite)\n"
+                    message += f"{i}. Contact admin for invite link\n"
 
         message += "\n**📋 Instructions:**\n"
-        message += "1️⃣ Join ALL channels above\n"
-        message += "2️⃣ Click **✅ Check Again** button\n"
+        message += "1️⃣ Join ALL channels above by clicking the links\n"
+        message += "2️⃣ Click **✅ Check Again** button below\n"
         message += "3️⃣ Once verified, you can use `/pendingaccept`\n\n"
         message += "💡 **Note:** You must be a member of all channels to access bot features."
 
