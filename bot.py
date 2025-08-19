@@ -974,7 +974,7 @@ async def welcome_new_members(_, m: Message):
                 print(f"⚠️ Welcome message failed for new member, they'll get it when they /start: {welcome_error}")
 
 async def send_welcome_message(user, group_name="Unknown Group"):
-    """Send simple welcome message to approved user and add to database"""
+    """Send request accepted message to approved user"""
     try:
         # Ensure user ID is valid integer
         user_id = int(user.id) if hasattr(user, 'id') else user
@@ -983,21 +983,36 @@ async def send_welcome_message(user, group_name="Unknown Group"):
         # Add user to database first
         add_user(user_id)
 
-        # Simple welcome message
-        welcome_text = f"**Hi {user_name}! Your request accepted {group_name}**"
+        # Improved welcome message for request acceptance
+        welcome_text = f"🎉 **Request Accepted!**\n\n" \
+                      f"Hi {user_name}! ✅\n\n" \
+                      f"Your join request for **{group_name}** has been approved.\n\n" \
+                      f"Welcome to the group! 🚀"
 
-        # Try to send welcome message
+        # Try to send welcome message with better error handling
         try:
-            await app.send_message(user_id, welcome_text)
-            print(f"💬 Welcome text sent to {user_name} (ID: {user_id})")
+            # Check if bot is properly connected before sending
+            if app.is_connected:
+                await app.send_message(user_id, welcome_text)
+                print(f"💬 Request accepted message sent to {user_name} (ID: {user_id})")
+            else:
+                print(f"⚠️ Bot not connected, cannot send message to {user_name} (ID: {user_id})")
+                # Schedule message for later when bot is ready
+                asyncio.create_task(send_delayed_welcome(user_id, welcome_text, user_name))
 
         except (errors.PeerIdInvalid, errors.UserIsBlocked):
             print(f"⚠️ User {user_name} (ID: {user_id}) hasn't started the bot or blocked it")
             print(f"✅ User {user_id} added to database for future messages")
 
         except Exception as text_err:
-            print(f"❌ Could not send welcome message to user {user_id}: {text_err}")
-            print(f"✅ User {user_id} added to database")
+            error_msg = str(text_err).lower()
+            if "client has not been started" in error_msg or "not been started yet" in error_msg:
+                print(f"⚠️ Bot client not ready, scheduling message for {user_name} (ID: {user_id})")
+                # Schedule message for later when bot is ready
+                asyncio.create_task(send_delayed_welcome(user_id, welcome_text, user_name))
+            else:
+                print(f"❌ Could not send welcome message to user {user_id}: {text_err}")
+                print(f"✅ User {user_id} added to database")
 
     except Exception as e:
         print(f"❌ Unexpected error in send_welcome_message: {e}")
@@ -1008,6 +1023,25 @@ async def send_welcome_message(user, group_name="Unknown Group"):
             print(f"✅ User {user_id} added to database despite error")
         except:
             pass
+
+async def send_delayed_welcome(user_id, welcome_text, user_name):
+    """Send welcome message after a delay when bot is ready"""
+    try:
+        # Wait for bot to be ready (max 30 seconds)
+        for i in range(6):
+            await asyncio.sleep(5)
+            if app.is_connected:
+                try:
+                    await app.send_message(user_id, welcome_text)
+                    print(f"💬 Delayed request accepted message sent to {user_name} (ID: {user_id})")
+                    return
+                except Exception as e:
+                    if i == 5:  # Last attempt
+                        print(f"❌ Failed to send delayed message to {user_name} after 30 seconds: {e}")
+                    continue
+        print(f"⚠️ Bot still not ready after 30 seconds, giving up on message to {user_name}")
+    except Exception as e:
+        print(f"❌ Error in delayed welcome for {user_name}: {e}")
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ callback ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
