@@ -989,30 +989,16 @@ async def send_welcome_message(user, group_name="Unknown Group"):
                       f"Your join request for **{group_name}** has been approved.\n\n" \
                       f"Welcome to the group! 🚀"
 
-        # Try to send welcome message with better connection handling
+        # Try to send welcome message with better error handling
         try:
-            # Wait for bot to be fully ready
-            max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    if not app.is_connected:
-                        print(f"⚠️ Bot not connected (attempt {attempt + 1}/{max_retries}), waiting...")
-                        await asyncio.sleep(2)
-                        continue
-                    
-                    await app.send_message(user_id, welcome_text)
-                    print(f"💬 Request accepted message sent to {user_name} (ID: {user_id})")
-                    return  # Success, exit function
-                    
-                except Exception as send_err:
-                    if attempt == max_retries - 1:  # Last attempt
-                        raise send_err
-                    await asyncio.sleep(1)
-                    continue
-            
-            # If we reach here, bot is still not connected after retries
-            print(f"⚠️ Bot not ready after {max_retries} attempts, scheduling delayed message for {user_name} (ID: {user_id})")
-            asyncio.create_task(send_delayed_welcome(user_id, welcome_text, user_name))
+            # Check if bot is properly connected before sending
+            if app.is_connected:
+                await app.send_message(user_id, welcome_text)
+                print(f"💬 Request accepted message sent to {user_name} (ID: {user_id})")
+            else:
+                print(f"⚠️ Bot not connected, cannot send message to {user_name} (ID: {user_id})")
+                # Schedule message for later when bot is ready
+                asyncio.create_task(send_delayed_welcome(user_id, welcome_text, user_name))
 
         except (errors.PeerIdInvalid, errors.UserIsBlocked):
             print(f"⚠️ User {user_name} (ID: {user_id}) hasn't started the bot or blocked it")
@@ -1021,7 +1007,8 @@ async def send_welcome_message(user, group_name="Unknown Group"):
         except Exception as text_err:
             error_msg = str(text_err).lower()
             if "client has not been started" in error_msg or "not been started yet" in error_msg:
-                print(f"⚠️ Bot client not ready, scheduling delayed message for {user_name} (ID: {user_id})")
+                print(f"⚠️ Bot client not ready, scheduling message for {user_name} (ID: {user_id})")
+                # Schedule message for later when bot is ready
                 asyncio.create_task(send_delayed_welcome(user_id, welcome_text, user_name))
             else:
                 print(f"❌ Could not send welcome message to user {user_id}: {text_err}")
@@ -1040,32 +1027,19 @@ async def send_welcome_message(user, group_name="Unknown Group"):
 async def send_delayed_welcome(user_id, welcome_text, user_name):
     """Send welcome message after a delay when bot is ready"""
     try:
-        # Wait for bot to be ready (max 60 seconds with shorter intervals)
-        max_attempts = 12
-        for i in range(max_attempts):
+        # Wait for bot to be ready (max 30 seconds)
+        for i in range(6):
             await asyncio.sleep(5)
-            
-            try:
-                if app.is_connected:
+            if app.is_connected:
+                try:
                     await app.send_message(user_id, welcome_text)
                     print(f"💬 Delayed request accepted message sent to {user_name} (ID: {user_id})")
                     return
-                else:
-                    print(f"🔄 Waiting for bot connection... (attempt {i+1}/{max_attempts})")
-                    
-            except (errors.PeerIdInvalid, errors.UserIsBlocked):
-                print(f"⚠️ User {user_name} (ID: {user_id}) hasn't started the bot or blocked it")
-                return  # No point retrying for these errors
-                
-            except Exception as e:
-                if i == max_attempts - 1:  # Last attempt
-                    print(f"❌ Failed to send delayed message to {user_name} after {max_attempts * 5} seconds: {e}")
-                    return
-                print(f"⚠️ Attempt {i+1} failed for {user_name}: {str(e)[:50]}...")
-                continue
-                
-        print(f"⚠️ Bot still not ready after {max_attempts * 5} seconds, giving up on message to {user_name}")
-        
+                except Exception as e:
+                    if i == 5:  # Last attempt
+                        print(f"❌ Failed to send delayed message to {user_name} after 30 seconds: {e}")
+                    continue
+        print(f"⚠️ Bot still not ready after 30 seconds, giving up on message to {user_name}")
     except Exception as e:
         print(f"❌ Error in delayed welcome for {user_name}: {e}")
 
@@ -1254,43 +1228,24 @@ async def check_bot_admin_in_fsub():
 async def startup_check():
     """Check bot startup and initialize properly"""
     try:
-        # Wait for bot to be fully connected
-        max_wait = 30  # seconds
-        wait_interval = 2  # seconds
-        attempts = max_wait // wait_interval
-        
-        for attempt in range(attempts):
-            try:
-                if app.is_connected:
-                    # Get bot info to ensure connection
-                    me = await app.get_me()
-                    print(f"✅ Main bot connected as: {me.first_name} (@{me.username})")
-                    
-                    # Wait a bit more to ensure full initialization
-                    await asyncio.sleep(3)
-                    
-                    # Check bot admin status in force sub channels
-                    admin_issues = await check_bot_admin_in_fsub()
-                    if admin_issues:
-                        print("⚠️ Force subscription admin issues:")
-                        for issue in admin_issues:
-                            print(f"  {issue}")
-                    
-                    print("🎯 Bot is fully ready to send messages!")
-                    return True
-                else:
-                    print(f"🔄 Waiting for bot connection... (attempt {attempt + 1}/{attempts})")
-                    await asyncio.sleep(wait_interval)
-                    
-            except Exception as conn_err:
-                print(f"⚠️ Connection check failed (attempt {attempt + 1}/{attempts}): {conn_err}")
-                await asyncio.sleep(wait_interval)
-                
-        print(f"❌ Bot connection not established after {max_wait} seconds")
-        return False
-        
+        # Ensure bot is started
+        if not app.is_connected:
+            print("🔄 Starting main bot connection...")
+
+        # Get bot info to ensure connection
+        me = await app.get_me()
+        print(f"✅ Main bot connected as: {me.first_name} (@{me.username})")
+
+        # Check bot admin status in force sub channels
+        admin_issues = await check_bot_admin_in_fsub()
+        if admin_issues:
+            print("⚠️ Force subscription admin issues:")
+            for issue in admin_issues:
+                print(f"  {issue}")
+
+        return True
     except Exception as e:
-        print(f"❌ Main bot startup check failed: {e}")
+        print(f"❌ Main bot connection failed: {e}")
         return False
 
 async def initialize_fsub_channels():
