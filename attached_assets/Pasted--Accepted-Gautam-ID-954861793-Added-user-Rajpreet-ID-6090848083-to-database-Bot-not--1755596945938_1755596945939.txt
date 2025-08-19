@@ -1,0 +1,45 @@
+✅ Accepted: Gautam (ID: 954861793)
+👤 Added user Rajpreet (ID: 6090848083) to database
+⚠️ Bot not connected, cannot send message to Rajpreet (ID: 6090848083)
+✅ Accepted: Rajpreet (ID: 6090848083)
+👤 Added user Robi (ID: 6093974459) to database
+📝 Added Robi (ID: 6093974459) to accepted users collection
+⚠️ Bot not connected, cannot send message to Robi (ID: 6093974459)
+✅ Accepted: Robi (ID: 6093974459)
+👤 Added user Radha (ID: 7633190624) to database
+📝 Added Radha (ID: 7633190624) to accepted users collection
+⚠️ Bot not connected, cannot send message to Radha (ID: 7633190624)
+✅ Accepted: Radha (ID: 7633190624)
+👤 Added user V (ID: 7146390200) to database
+📝 Added V (ID: 7146390200) to accepted users collection
+⚠️ Bot not connected, cannot send message to V (ID: 7146390200)
+✅ Accepted: V (ID: 7146390200)
+👤 Added user Haaaaa (ID: 6761770101) to database
+📝 Added Haaaaa (ID: 6761770101) to accepted users collection
+⚠️ Bot not connected, cannot send message to Haaaaa (ID: 6761770101)
+✅ Accepted: Haaaaa (ID: 6761770101)
+👤 Added user Marzhuk (ID: 2097602574) to database
+📝 Added Marzhuk (ID: 2097602574) to accepted users collection
+⚠️ Bot still not ready after 30 seconds, giving up on message to parabatula
+⚠️ Bot not connected, cannot send message to Marzhuk (ID: 2097602574)
+✅ Accepted: Marzhuk (ID: 2097602574)
+👤 Added user Manoj (ID: 7383719680) to database
+📝 Added Manoj (ID: 7383719680) to accepted users collection
+⚠️ Bot still not ready after 30 seconds, giving up on message to Ds
+⚠️ Bot not connected, cannot send message to Manoj (ID: 7383719680)
+✅ Accepted: Manoj (ID: 7383719680)
+✅ All 15 users have been processed. Breaking main loop.
+⚠️ Bot still not ready after 30 seconds, giving up on message to Raj
+🚪 User account left chat: 2 (ID: -1002321965460)
+⚠️ Bot still not ready after 30 seconds, giving up on message to Deepak
+⚠️ Bot still not ready after 30 seconds, giving up on message to Helal
+⚠️ Bot still not ready after 30 seconds, giving up on message to Rajesh
+⚠️ Bot still not ready after 30 seconds, giving up on message to Ajith
+⚠️ Bot still not ready after 30 seconds, giving up on message to Gautam
+⚠️ Bot still not ready after 30 seconds, giving up on message to Rajpreet
+⚠️ Bot still not ready after 30 seconds, giving up on message to Robi
+⚠️ Bot still not ready after 30 seconds, giving up on message to Radha
+⚠️ Bot still not ready after 30 seconds, giving up on message to V
+⚠️ Bot still not ready after 30 seconds, giving up on message to Haaaaa
+⚠️ Bot still not ready after 30 seconds, giving up on message to Marzhuk
+⚠️ Bot still not ready after 30 seconds, giving up on message to Manoj
